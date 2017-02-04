@@ -1,0 +1,9 @@
+lastUpgrade=00936
+proj.AppId=788728264385
+and.BundleId=com.miragelab.boomlandfree
+proj.classDir=Assets
+proj.ConstantsClassName=GPG
+and.ResourceData=%3c%3fxml+version%3d%221.0%22+encoding%3d%22utf-8%22%3f%3e%0d%0a%3c%21--%0d%0aGoogle+Play+game+services+IDs.%0d%0aSave+this+file+as+res%2fvalues%2fgames-ids.xml+in+your+project.%0d%0a--%3e%0d%0a%3cresources%3e%0d%0a++%3cstring+name%3d%22app_id%22%3e788728264385%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22package_name%22%3ecom.miragelab.boomlandfree%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_fast_man%22%3eCgkIwe34nvoWEAIQAg%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_100_bombs%22%3eCgkIwe34nvoWEAIQAw%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_500_bombs%22%3eCgkIwe34nvoWEAIQBA%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_glass_block_smasher%22%3eCgkIwe34nvoWEAIQBQ%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_combo_master%22%3eCgkIwe34nvoWEAIQBg%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_combo_master_ii%22%3eCgkIwe34nvoWEAIQBw%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_rock_block_smasher%22%3eCgkIwe34nvoWEAIQCA%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_levels_in_a_row%22%3eCgkIwe34nvoWEAIQDw%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22achievement_game_complete%22%3eCgkIwe34nvoWEAIQCQ%3c%2fstring%3e%0d%0a++%3cstring+name%3d%22leaderboard_best_players%22%3eCgkIwe34nvoWEAIQAQ%3c%2fstring%3e%0d%0a%3c%2fresources%3e
+and.ClientId=
+android.SetupDone=true
+proj.pluginVersion=0.9.36
