@@ -29,9 +29,7 @@ namespace Virterix {
             const string _HASH_SAVE_KEY = "virterix.admediation.settings.hash";
 			const string _HASH_CRYPT_KEY = "qt3u9c";
 			const float _LOAD_SETTINGS_WAITING_TIME = 30.0f;
-
             const string _SETTINGS_VERSION_PARAM_KEY = "settingsVersion";
-            const string _SYS_VERSION_PARAM_KEY = "systemVersion";
 
             #endregion // Configuration variables
 
