@@ -9,6 +9,6 @@ RandomFetchStrategy:
 percentage - show the percentage of probability (range 0-100)
 
 SequenceFetchStrategy:
-skipFetchIndex - index fetch when ad unit skip
+skipFetchIndex - index of fetch when ad unit skip
 
 
