@@ -46,7 +46,7 @@ namespace Virterix {
             #region Variables
             //-------------------------------------------------------------------------------
 
-            public string m_apiUrl = "http://api.virterix.com/";
+            public string m_apiUrl = "";
             public string m_projectName;
             
             public bool m_isLoadOnlyDefaultSettings = true;
