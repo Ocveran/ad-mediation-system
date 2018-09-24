@@ -1,5 +1,6 @@
 ﻿
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,10 +14,20 @@ namespace Virterix {
 
         public class AdMediationSystem : Singleton<AdMediationSystem> {
 
+            public enum AppPlatform {
+                Android,
+                iOS
+            }
+
             enum SetupSettingsState {
                 Successful,
 				RequiredCheckUpdate,
 				Failure
+            }
+
+            struct NetworkParams {
+                public Dictionary<string, string> m_parameters;
+                public JSONArray m_placements;
             }
 
             //===============================================================================
@@ -24,12 +35,10 @@ namespace Virterix {
             //-------------------------------------------------------------------------------
 
             public const string _API_VERSION = "1.24";
-
-			const string _CHECK_UPDATE_DATA_SAVE_KEY = "virterix.admediation.check.update.date";
-            const string _HASH_SAVE_KEY = "virterix.admediation.settings.hash";
-			const string _HASH_CRYPT_KEY = "qt3u9c";
+            const string _CHECK_UPDATE_DATA_SAVE_KEY = "adm_check_update_date";
+            const string _HASH_SAVE_KEY = "adm_settings_hash";
 			const float _LOAD_SETTINGS_WAITING_TIME = 30.0f;
-            const string _SETTINGS_VERSION_PARAM_KEY = "settingsVersion";
+            const string _SETTINGS_VERSION_PARAM_KEY = "adm_settings_version";
 
             #endregion // Configuration variables
 
@@ -39,12 +48,17 @@ namespace Virterix {
 
             public string m_apiUrl = "http://api.virterix.com/";
             public string m_projectName;
-            public bool m_isLoadOnlyDefaultSettings;
+            
+            public bool m_isLoadOnlyDefaultSettings = true;
+            [Tooltip("Compare settings only loaded from server")]
             public bool m_isCompareSettingsByHash = true;
-            public string m_defaultPlatformName = "android";
+            public AppPlatform m_defaultPlatformName;
+            public string m_hashCryptKey;
+            [SerializeField]
+            private bool m_isInitializeOnStart = true;
 
-			public static event Action OnInitializeComplete = delegate { };
-			public static event Action<AdNetworkAdapter, AdType, AdNetworkAdapter.AdEvent> OnAdNetworkEvent = delegate { };
+            public static event Action OnInitializeComplete = delegate { };
+			public static event Action<AdNetworkAdapter, AdType, AdEvent, string> OnAdNetworkEvent = delegate { };
 
             Hashtable m_userParameters = new Hashtable();
 			SavedDate m_сheckUpdateData;
@@ -58,19 +72,29 @@ namespace Virterix {
 
             public string PlatfomName {
                 get {
-                    string platformName = m_defaultPlatformName;
+                    string platformName = m_defaultPlatformName.ToString();
 
                     switch (Application.platform) {
                         case RuntimePlatform.Android:
-                            platformName = "android";
+                            platformName = AppPlatform.Android.ToString();
                             break;
                         case RuntimePlatform.IPhonePlayer:
-                            platformName = "ios";
+                            platformName = AppPlatform.iOS.ToString();
                             break;
                     }
                     return platformName;
                 }
             }
+
+            public InternetChecker InternetChecker {
+                get {
+                    if (m_internetChecker == null) {
+                        m_internetChecker = InternetChecker.Create();
+                    }
+                    return m_internetChecker;
+                }
+            }
+            InternetChecker m_internetChecker;
 
             string SettingsFileName {
                 get { return PlatfomName + "_settings"; }
@@ -78,7 +102,7 @@ namespace Virterix {
 
             string DefaultSettingsFilePathInResources {
                 get {
-                    string settingsFilePath = "Settings/" + m_projectName + "/" + SettingsFileName;
+                    string settingsFilePath = "AdSettings/" + m_projectName + "/" + SettingsFileName;
                     return settingsFilePath;
                 }
             }
@@ -104,6 +128,7 @@ namespace Virterix {
                 }
             }
 
+
             #endregion // Variables
 
             //===============================================================================
@@ -115,7 +140,9 @@ namespace Virterix {
             }
 
             void Start() {
-                Initialize();
+                if (m_isInitializeOnStart) {
+                    Initialize();
+                }
             }
 
             #endregion MonoBehaviour methods
@@ -197,10 +224,10 @@ namespace Virterix {
                 return foundNetwork;
             }
 
-            public AdMediator GetMediator(AdType adType) {
+            public AdMediator GetMediator(AdType adType, string placementName = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME) {
                 AdMediator foundMediator = null;
                 foreach (AdMediator mediator in m_mediators) {
-                    if (mediator.m_adType == adType) {
+                    if (mediator.m_adType == adType && mediator.m_placementName == placementName) {
                         foundMediator = mediator;
                         break;
                     }
@@ -208,35 +235,37 @@ namespace Virterix {
                 return foundMediator;
             }
 
-            public static void Fetch(AdType adType, Hashtable parameters = null) {
-                AdMediator mediator = Instance.GetMediator(adType);
+            public static void Fetch(AdType adType, string placementName = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME, Hashtable parameters = null) {
+                AdMediator mediator = Instance.GetMediator(adType, placementName);
                 if (mediator != null) {
                     mediator.Fetch();
                 } else {
-                    Debug.Log("[AdMediationSystem.Fetch] Not found mediator: " + adType.ToString());
+                    Debug.Log("AdMediationSystem.Fetch() Not found mediator: " + adType.ToString());
                 }
             }
 
-            public static void Show(AdType adType, Hashtable parameters = null) {
-                AdMediator mediator = Instance.GetMediator(adType);
+            public static void Show(AdType adType, string placementName = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME, Hashtable parameters = null) {
+                AdMediator mediator = Instance.GetMediator(adType, placementName);
                 if (mediator != null) {
                     mediator.Show();
                 } else {
-                    Debug.Log("[AdMediationSystem.Fetch] Not found mediator: " + adType.ToString());
+                    Debug.Log("AdMediationSystem.Fetch() Not found mediator: " + adType.ToString());
                 }
             }
 
-            public static void Hide(AdType adType) {
-                AdMediator mediator = Instance.GetMediator(adType);
+            public static void Hide(AdType adType, string placementName = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME) {
+                AdMediator mediator = Instance.GetMediator(adType, placementName);
                 if (mediator != null) {
-                    mediator.Hide();
+                    mediator.Hide(placementName);
                 } else {
-                    Debug.Log("[AdMediationSystem.Hide] Not found mediator " + adType.ToString());
+                    Debug.Log("AdMediationSystem.Hide() Not found mediator " + adType.ToString());
                 }
             }
 
-            public static void NotifyAdNetworkEvent(AdNetworkAdapter network, AdType adType, AdNetworkAdapter.AdEvent adEvent) {
-                OnAdNetworkEvent(network, adType, adEvent);
+            public static void NotifyAdNetworkEvent(AdNetworkAdapter network, AdType adType, AdEvent adEvent, 
+                string placement = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME) {
+
+                OnAdNetworkEvent(network, adType, adEvent, placement);
             }
 
             #endregion // Mediation ad networks
@@ -247,7 +276,7 @@ namespace Virterix {
 
             string GetCustomizationRequestUrl(string methodName) {
                 string requestUrl = m_apiUrl + "customization." + methodName + "?" +
-                    "platform=" + this.PlatfomName +
+                    "platform=" + PlatfomName +
                     "&project=" + m_projectName +
                     "&v=" + _API_VERSION;
                 return requestUrl;
@@ -255,18 +284,18 @@ namespace Virterix {
 
             void CalculateAndSaveSettingsHash(string settings) {
                 string hash = AdUtils.GetHash(settings);
-                string encodedHash = CryptString.Encode(hash, _HASH_CRYPT_KEY);
+                string encodedHash = CryptString.Encode(hash, m_hashCryptKey);
 				PlayerPrefs.SetString(_HASH_SAVE_KEY, encodedHash);
             }
 
             void SaveSettingsHash(string settingsHash) {
-                string encodedHash = CryptString.Encode(settingsHash, _HASH_CRYPT_KEY);
+                string encodedHash = CryptString.Encode(settingsHash, m_hashCryptKey);
 				PlayerPrefs.SetString(_HASH_SAVE_KEY, encodedHash);
             }
 
             bool IsSettingsHashValid(string settings) {
 				string encodedHash = PlayerPrefs.GetString(_HASH_SAVE_KEY, "");
-                string savedHash = CryptString.Decode(encodedHash, _HASH_CRYPT_KEY);
+                string savedHash = CryptString.Decode(encodedHash, m_hashCryptKey);
                 string currHash = AdUtils.GetHash(settings);
                 bool isValid = currHash == savedHash;
                 return isValid;
@@ -283,10 +312,10 @@ namespace Virterix {
                 return valueStr;
             }
 
-            AdMediator GetOrCreateMediator(AdType adType) {
+            AdMediator GetOrCreateMediator(AdType adType, string placementName = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME) {
                 AdMediator foundMediator = null;
                 foreach (AdMediator mediator in m_mediators) {
-                    if (mediator.m_adType == adType) {
+                    if (mediator.m_adType == adType && mediator.m_placementName == placementName) {
                         foundMediator = mediator;
                         break;
                     }
@@ -295,6 +324,7 @@ namespace Virterix {
                 if (foundMediator == null) {
                     AdMediator createdMediator = this.gameObject.AddComponent<AdMediator>();
                     createdMediator.m_adType = adType;
+                    createdMediator.m_placementName = placementName;
                     m_mediators.Add(createdMediator);
                     foundMediator = createdMediator;
                 }
@@ -308,10 +338,10 @@ namespace Virterix {
             bool IsRequiredCheckUpdateSettingsFile(Boomlagoon.JSON.JSONObject jsonSettings) {
                 bool isRequiredCheckUpdate = false;
 				m_сheckUpdateData.m_period = (float)jsonSettings.GetNumber("checkUpdatePeriod");
-                isRequiredCheckUpdate = m_сheckUpdateData.IsOverPeriod() || !m_сheckUpdateData.WasSaved;
+                isRequiredCheckUpdate = m_сheckUpdateData.IsPeriodOver || !m_сheckUpdateData.WasSaved;
 
 #if AD_MEDIATION_DEBUG_MODE
-				Debug.Log("[AdMediationSystem.IsRequiredCheckUpdateSettingsFile] Elapsed hours:" + m_сheckUpdateData.PassedHoursSinceLastSave + 
+				Debug.Log("AdMediationSystem.IsRequiredCheckUpdateSettingsFile() Elapsed hours:" + m_сheckUpdateData.PassedHoursSinceLastSave + 
 					" requiredHours:" + m_сheckUpdateData.m_period);
 #endif
 
@@ -328,12 +358,11 @@ namespace Virterix {
             #region Initialize
             //-------------------------------------------------------------------------------
 
-            void Initialize() {					 
+            public void Initialize() {					 
 				m_сheckUpdateData = new SavedDate(_CHECK_UPDATE_DATA_SAVE_KEY, 72, SavedDate.PeriodType.Hours);
                 m_networkAdapters = GetComponentsInChildren<AdNetworkAdapter>(true);   
-                AdMediator[] mediators = GetComponents<AdMediator>();
+                AdMediator[] mediators = GetComponentsInChildren<AdMediator>();
                 m_mediators.AddRange(mediators);
-
                 StartInitializeSettings();
             }
 
@@ -363,6 +392,8 @@ namespace Virterix {
                 string userParametersKey = "userParameters";
                 string mediatorsKey = "mediators";
                 string adTypeKey = "adType";
+                string mediatorPlacementNameKey = "placement";
+                string networkPlacementsNameKey = "placements";
                 string strategyKey = "strategy";
                 string defaultWaitingResponseTimeKey = "defaultWaitingResponseTime";
                 string typeInStrategyKey = "type";
@@ -376,7 +407,7 @@ namespace Virterix {
                 string networkNameKey = "name";
                 string networkTimeoutsKey = "timeouts";
 
-                Dictionary<AdNetworkAdapter, object> dictNetworks = new Dictionary<AdNetworkAdapter, object>();
+                Dictionary<AdNetworkAdapter, NetworkParams> dictNetworks = new Dictionary<AdNetworkAdapter, NetworkParams>();
                 Dictionary<AdMediator, List<AdUnit>> dictMediators = new Dictionary<AdMediator, List<AdUnit>>();
 
                 try {
@@ -412,26 +443,33 @@ namespace Virterix {
                         if (networkAdapter != null) {
                             if (jsonValNetworkParams.Obj.ContainsKey("enabled")) {
                                 if (!jsonValNetworkParams.Obj.GetBoolean("enabled")) {
-                                    networkAdapter.SetEnabled(false);
+                                    networkAdapter.enabled = false;
                                     continue;
                                 }
                             }
-                            Dictionary<string, string> networkParams = new Dictionary<string, string>();
+                            Dictionary<string, string> dictNetworkParams = new Dictionary<string, string>();
 
                             // Parse parameters
                             foreach (KeyValuePair<string, JSONValue> pairValue in jsonValNetworkParams.Obj) {
                                 if (pairValue.Key == networkTimeoutsKey) {
-                                    ParseNetworkTimeoutParameters(pairValue.Value.Array, ref networkParams, "timeout-");
+                                    ParseNetworkTimeoutParameters(pairValue.Value.Array, ref dictNetworkParams, "timeout-");
                                 }
                                 else {
-                                    networkParams.Add(pairValue.Key, JsonValueToString(pairValue.Value));
+                                    dictNetworkParams.Add(pairValue.Key, JsonValueToString(pairValue.Value));
                                 }
+                            }
+
+                            NetworkParams networkParams = new NetworkParams();
+                            networkParams.m_parameters = dictNetworkParams;
+
+                            if (jsonValNetworkParams.Obj.ContainsKey(networkPlacementsNameKey)) {
+                                networkParams.m_placements = jsonValNetworkParams.Obj.GetArray(networkPlacementsNameKey);
                             }
 
                             dictNetworks.Add(networkAdapter, networkParams);
                         }
                         else {
-                            Debug.LogWarning("[AdMediationSystem.SetupNetworkParameters] Initializing networks. Not found Ad network adapter with name: " + networkName);
+                            Debug.LogWarning("AdMediationSystem.SetupNetworkParameters() Initializing networks. Not found Ad network adapter with name: " + networkName);
                         }
                     }
 
@@ -447,7 +485,11 @@ namespace Virterix {
                         string strategyTypeName = jsonStrategy.GetValue(typeInStrategyKey).Str;
                         JSONArray jsonArrUnits = jsonStrategy.GetArray(networkUnitsKey);
                         AdType adType = AdTypeConvert.StringToAdType(adTypeName);
-                        AdMediator mediator = GetOrCreateMediator(adType);
+                        string placementName = AdNetworkAdapter._PLACEMENT_DEFAULT_NAME;
+                        if (jsonMediationParams.Obj.ContainsKey(mediatorPlacementNameKey)) {
+                            placementName = jsonMediationParams.Obj.GetValue(mediatorPlacementNameKey).Str;
+                        }
+                        AdMediator mediator = GetOrCreateMediator(adType, placementName);
                         List<AdUnit> units = new List<AdUnit>();
 
                         mediator.FetchStrategy = AdFactory.CreateFetchStrategy(strategyTypeName);
@@ -473,7 +515,7 @@ namespace Virterix {
                             if (jsonNetworkUnits.Obj.ContainsKey(internalAdTypeKey)) {
                                 internalAdTypeName = jsonNetworkUnits.Obj.GetString(internalAdTypeKey);
                                 AdType convertedAdType = AdTypeConvert.StringToAdType(internalAdTypeName);
-                                internalAdType = convertedAdType != AdType.None ? convertedAdType : internalAdType;
+                                internalAdType = convertedAdType != AdType.Unknown ? convertedAdType : internalAdType;
                             }
 
                             // If the network enabled and support this type of advertising then add it to list 
@@ -490,15 +532,15 @@ namespace Virterix {
                                 // Create strategy parameters
                                 IFetchStrategyParams fetchStrategyParams = AdFactory.CreateFetchStrategyParams(strategyTypeName, internalAdType, dictUnitParams);
                                 if (fetchStrategyParams == null) {
-                                    Debug.LogWarning("[AdMediationSystem.SetupNetworkParameters] Not found fetch strategy parameters");
+                                    Debug.LogWarning("AdMediationSystem.SetupNetworkParameters() Not found fetch strategy parameters");
                                 }
 
                                 // Create ad unit
-                                AdUnit unit = new AdUnit(internalAdType, networkAdapter, fetchStrategyParams, unitEnabled);
+                                AdUnit unit = new AdUnit(placementName, internalAdType, networkAdapter, fetchStrategyParams, unitEnabled);
                                 units.Add(unit);
                             }
                             else {
-                                Debug.LogWarning("[AdMediationSystem.SetupNetworkParameters] Not found network adapter: " + networkName);
+                                Debug.LogWarning("AdMediationSystem.SetupNetworkParameters() Not found network adapter: " + networkName);
                             }
                             dictUnitParams.Clear();
                         }
@@ -509,20 +551,21 @@ namespace Virterix {
                     setupSettingsSuccess = true;
                 }
                 catch(Exception e) {
-                    Debug.LogWarning("[AdMediationSystem.SetupSettings] Parse settings failed! Catch exception when setup settings. Message: " + e.Message + " __StackTrace__: " + e.StackTrace);
+                    Debug.LogWarning("AdMediationSystem.SetupSettings() Parse settings failed! Catch exception when setup settings. Message: " + e.Message + " __StackTrace__: " + e.StackTrace);
                 }
 
                 if (setupSettingsSuccess) {
                     // Initialization networks
-                    foreach (KeyValuePair<AdNetworkAdapter, object> pair in dictNetworks) {
+                    foreach (KeyValuePair<AdNetworkAdapter, NetworkParams> pair in dictNetworks) {
                         AdNetworkAdapter netwrok = pair.Key;
-                        netwrok.Initialize((Dictionary<string, string>)pair.Value);
+                        Dictionary<string, string> networkParameters = (Dictionary<string, string>)pair.Value.m_parameters;
+                        netwrok.Initialize(networkParameters, pair.Value.m_placements);
                     }
 
                     // Initialization mediators
                     foreach (KeyValuePair<AdMediator, List<AdUnit>> pair in dictMediators) {
                         AdMediator mediator = pair.Key;
-                        mediator.InitUnits(pair.Value.ToArray());
+                        mediator.Initialize(pair.Value.ToArray());
                     }
                 } else {
                     m_userParameters = new Hashtable();
@@ -586,7 +629,7 @@ namespace Virterix {
                     }
 
 #if AD_MEDIATION_DEBUG_MODE
-					Debug.Log("[AdMediationSystem.LoadJsonSettingsFromFile] " + (isLoadSuccessfully ? " Valid settings" : " Not valid settings"));
+					Debug.Log("AdMediationSystem.LoadJsonSettingsFromFile() " + (isLoadSuccessfully ? " Valid settings" : " Not valid settings"));
 #endif
                 }
 
@@ -597,7 +640,7 @@ namespace Virterix {
                         settings = JSONObject.Parse(jsonString);
 
 #if AD_MEDIATION_DEBUG_MODE
-                        Debug.Log("[AdMediationSystem.LoadJsonSettingsFromFile] Loaded default settings file");
+                        Debug.Log("AdMediationSystem.LoadJsonSettingsFromFile() Loaded default settings file");
 #endif
                     }
                 }
@@ -606,7 +649,7 @@ namespace Virterix {
                 isLoadSuccessfully = resultSettings != null;
 
                 return isLoadSuccessfully;
-           }
+            }
             
             void StartLoadSettingsFromServer() {
 				string requestUrl = GetCustomizationRequestUrl("get");

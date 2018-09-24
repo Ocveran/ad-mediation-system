@@ -1,7 +1,8 @@
 // Copyright 2014 Google Inc. All Rights Reserved.
 
-@import Foundation;
-@import GoogleMobileAds;
+#import <Foundation/Foundation.h>
+
+#import <GoogleMobileAds/GoogleMobileAds.h>
 
 /// Genders to help deliver more relevant ads.
 typedef NS_ENUM(NSInteger, GADUGender) {
@@ -35,6 +36,9 @@ typedef NS_ENUM(NSInteger, GADUGender) {
 /// child-directed for purposes of the Children’s Online Privacy Protection Act (COPPA) -
 /// http://business.ftc.gov/privacy-and-security/childrens-privacy.
 @property(nonatomic, assign) BOOL tagForChildDirectedTreatment;
+
+/// GADMediationExtras to be sent up in the ad request.
+@property(nonatomic, strong) NSMutableArray<id<GADAdNetworkExtras>> *mediationExtras;
 
 /// Extra parameters to be sent up in the ad request.
 @property(nonatomic, strong) NSMutableDictionary *extras;

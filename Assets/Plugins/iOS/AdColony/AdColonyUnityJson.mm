@@ -28,7 +28,7 @@
 @end
 
 
-@implementation NSArray (adcPubServicesUtils)
+@implementation NSArray (adcJsonParsing)
 
 - (NSString *)toJsonString {
     NSError *error;
@@ -57,15 +57,19 @@
                 NSString *string = (NSString *)obj;
                 if ([key isEqualToString:ADC_APPOPTIONS_USER_ID_KEY]) {
                     self.userID = string;
+                } else if ([key isEqualToString:ADC_APPOPTIONS_GDPR_CONSENT_STRING]) {
+                    self.gdprConsentString = string;
                 } else {
                     [self setOption:key withStringValue:string];
                 }
             } else if ([obj isKindOfClass:[NSNumber class]]) {
-                NSNumber *number = (NSNumber*)obj;
+                NSNumber *number = (NSNumber *)obj;
                 if ([key isEqualToString:ADC_APPOPTIONS_ORIENTATION]) {
                     self.adOrientation = (AdColonyOrientation)[number intValue];
                 } else if (([key isEqualToString:ADC_APPOPTIONS_DISABLE_LOGGING_KEY])) {
                     self.disableLogging = [number boolValue];
+                } else if (([key isEqualToString:ADC_APPOPTIONS_GDPR_REQUIRED])) {
+                    self.gdprRequired = [number boolValue];
                 } else {
                     [self setOption:key withNumericValue:number];
                 }
@@ -80,7 +84,7 @@
 }
 
 - (NSString *)toJsonString {
-    // TODO: implement.
+    // TODO: implement if needed.
     return nil;
 }
 

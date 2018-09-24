@@ -29,7 +29,7 @@ namespace AudienceNetwork
     {
         public static string Build {
             get {
-                return "4.17.0";
+                return "4.28.2";
             }
         }
     }

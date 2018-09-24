@@ -12,11 +12,11 @@
 #import "ALAdVideoPlaybackDelegate.h"
 #import "ALAdRewardDelegate.h"
 #import "ALManagedLoadDelegate.h"
+#import "ALAdViewEventDelegate.h"
 
-@interface ALAdDelegateWrapper : NSObject <ALAdLoadDelegate, ALAdDisplayDelegate, ALAdRewardDelegate, ALAdVideoPlaybackDelegate, ALUnityTypedLoadFailureDelegate>
+@interface ALAdDelegateWrapper : NSObject <ALAdLoadDelegate, ALAdDisplayDelegate, ALAdRewardDelegate, ALAdVideoPlaybackDelegate, ALUnityTypedLoadFailureDelegate, ALAdViewEventDelegate>
 
 @property (assign, atomic) BOOL isInterstitialShowing;
-@property (assign, atomic) BOOL isIncentReady;
 
 @property (strong, nonatomic) NSString* gameObjectToNotify;
 

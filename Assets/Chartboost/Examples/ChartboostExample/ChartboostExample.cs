@@ -7,26 +7,19 @@ using System.Collections.Generic;
 public class ChartboostExample: MonoBehaviour
 {
 
-	public GameObject inPlayIcon;
-	public GameObject inPlayText;
 	public Texture2D logo;
-	
-	private CBInPlay inPlayAd;
 
 	public Vector2 scrollPosition = Vector2.zero;
 	private List<string> delegateHistory;
 
 	private bool hasInterstitial = false;
-	private bool hasMoreApps = false;
 	private bool hasRewardedVideo = false;
-	private bool hasInPlay = false;
 	private int frameCount = 0;
 
 	private bool ageGate = false;
 	private bool autocache = true;
 	private bool activeAgeGate = false;
 	private bool showInterstitial = true;
-	private bool showMoreApps = true;
 	private bool showRewardedVideo = true;
 	private int BANNER_HEIGHT = 110;
 	private int REQUIRED_HEIGHT = 650;
@@ -50,8 +43,16 @@ public class ChartboostExample: MonoBehaviour
 		Chartboost.setShouldPauseClickForConfirmation(ageGate);
 		#endif
 		Chartboost.setAutoCacheAds(autocache);
+		/* 
+		//Uncomment to set your mediation partner (if any) such as AdMob, MoPub, Supersonic etc.
 		Chartboost.setMediation (CBMediation.AdMob, "1.0");
-
+		*/
+        /* 
+        // Uncomment to restrict Chartboost's ability to collect personal data from the device. When this is set to true,
+        // IDFA and ip address will not be collected by the SDK or the server. 
+        // Use this to communicate an EU Data Subject's preference regarding data collection.
+		Chartboost.restrictDataCollection(true);
+        */
 		AddLog("Is Initialized: " + Chartboost.isInitialized());
 		/*
 		// Create the Chartboost gameobject with the editor AppId and AppSignature
@@ -81,13 +82,6 @@ public class ChartboostExample: MonoBehaviour
 		Chartboost.didCacheInterstitial += didCacheInterstitial;
 		Chartboost.shouldDisplayInterstitial += shouldDisplayInterstitial;
 		Chartboost.didDisplayInterstitial += didDisplayInterstitial;
-		Chartboost.didFailToLoadMoreApps += didFailToLoadMoreApps;
-		Chartboost.didDismissMoreApps += didDismissMoreApps;
-		Chartboost.didCloseMoreApps += didCloseMoreApps;
-		Chartboost.didClickMoreApps += didClickMoreApps;
-		Chartboost.didCacheMoreApps += didCacheMoreApps;
-		Chartboost.shouldDisplayMoreApps += shouldDisplayMoreApps;
-		Chartboost.didDisplayMoreApps += didDisplayMoreApps;
 		Chartboost.didFailToRecordClick += didFailToRecordClick;
 		Chartboost.didFailToLoadRewardedVideo += didFailToLoadRewardedVideo;
 		Chartboost.didDismissRewardedVideo += didDismissRewardedVideo;
@@ -97,8 +91,6 @@ public class ChartboostExample: MonoBehaviour
 		Chartboost.shouldDisplayRewardedVideo += shouldDisplayRewardedVideo;
 		Chartboost.didCompleteRewardedVideo += didCompleteRewardedVideo;
 		Chartboost.didDisplayRewardedVideo += didDisplayRewardedVideo;
-		Chartboost.didCacheInPlay += didCacheInPlay;
-		Chartboost.didFailToLoadInPlay += didFailToLoadInPlay;
 		Chartboost.didPauseClickForConfirmation += didPauseClickForConfirmation;
 		Chartboost.willDisplayVideo += willDisplayVideo;
 		#if UNITY_IPHONE
@@ -119,9 +111,7 @@ public class ChartboostExample: MonoBehaviour
 		{
 			// update these periodically and not every frame
 			hasInterstitial = Chartboost.hasInterstitial(CBLocation.Default);
-			hasMoreApps = Chartboost.hasMoreApps(CBLocation.Default);
 			hasRewardedVideo = Chartboost.hasRewardedVideo(CBLocation.Default);
-			hasInPlay = Chartboost.hasInPlay(CBLocation.Default);
 
 			frameCount = 0;
 		}
@@ -189,10 +179,7 @@ public class ChartboostExample: MonoBehaviour
 
     	ELEMENT_WIDTH = (int)(sWidth/scale)-30;
     	float height = REQUIRED_HEIGHT;
-    	if(inPlayAd != null) {
-    		// add space for the icon
-    		height += 60;
-    	}
+    	
 		scrollRect = new Rect(0, BANNER_HEIGHT, ELEMENT_WIDTH+30, sHeight/scale-BANNER_HEIGHT);
 		scrollArea = new Rect(-10, BANNER_HEIGHT, ELEMENT_WIDTH, height);
 
@@ -227,7 +214,6 @@ public class ChartboostExample: MonoBehaviour
 		GUILayout.Space(5);
 		GUILayout.Label("Options:");
 		showInterstitial = GUILayout.Toggle(showInterstitial, "Should Display Interstitial");
-		showMoreApps = GUILayout.Toggle(showMoreApps, "Should Display More Apps");
 		showRewardedVideo = GUILayout.Toggle(showRewardedVideo, "Should Display Rewarded Video");
 		if( GUILayout.Toggle(ageGate, "Should Pause for AgeGate") != ageGate )
 		{
@@ -278,16 +264,6 @@ public class ChartboostExample: MonoBehaviour
 		}
 		
 		GUILayout.Space(5);
-		GUILayout.Label("Has MoreApps: " + hasMoreApps);
-		if (GUILayout.Button("Cache More Apps", GUILayout.Width(ELEMENT_WIDTH))) {
-			Chartboost.cacheMoreApps(CBLocation.Default);
-		}
-		
-		if (GUILayout.Button("Show More Apps", GUILayout.Width(ELEMENT_WIDTH))) {
-			Chartboost.showMoreApps(CBLocation.Default);
-		}
-		
-		GUILayout.Space(5);
 		GUILayout.Label("Has Rewarded Video: " + hasRewardedVideo);
 		if (GUILayout.Button("Cache Rewarded Video", GUILayout.Width(ELEMENT_WIDTH))) {
 			Chartboost.cacheRewardedVideo(CBLocation.Default);
@@ -296,27 +272,7 @@ public class ChartboostExample: MonoBehaviour
 		if (GUILayout.Button("Show Rewarded Video", GUILayout.Width(ELEMENT_WIDTH))) {
 			Chartboost.showRewardedVideo(CBLocation.Default);
 		}
-		
-		GUILayout.Space(5);
-		GUILayout.Label("Has InPlay: " + hasInPlay);
-		if (GUILayout.Button("Cache InPlay Ad", GUILayout.Width(ELEMENT_WIDTH))) {
-			Chartboost.cacheInPlay(CBLocation.Default);
-		}
-		
-		if (GUILayout.Button("Show InPlay Ad", GUILayout.Width(ELEMENT_WIDTH))) {
-			inPlayAd = Chartboost.getInPlay(CBLocation.Default);
-			if(inPlayAd != null) {
-				inPlayAd.show();
-			}
-		}
-		if(inPlayAd != null) {
-			// Set the texture of InPlay Ad Icon
-			// Link its onClick() event with inPlay's click()
-			GUILayout.Label("app: " + inPlayAd.appName);
-			if(GUILayout.Button(inPlayAd.appIcon, GUILayout.Width(ELEMENT_WIDTH))) {
-				inPlayAd.click();
-			}
-		}
+
 
 		GUILayout.Space(5);
 		GUILayout.Label("Post install events:");
@@ -362,13 +318,6 @@ public class ChartboostExample: MonoBehaviour
 		Chartboost.didCacheInterstitial -= didCacheInterstitial;
 		Chartboost.shouldDisplayInterstitial -= shouldDisplayInterstitial;
 		Chartboost.didDisplayInterstitial -= didDisplayInterstitial;
-		Chartboost.didFailToLoadMoreApps -= didFailToLoadMoreApps;
-		Chartboost.didDismissMoreApps -= didDismissMoreApps;
-		Chartboost.didCloseMoreApps -= didCloseMoreApps;
-		Chartboost.didClickMoreApps -= didClickMoreApps;
-		Chartboost.didCacheMoreApps -= didCacheMoreApps;
-		Chartboost.shouldDisplayMoreApps -= shouldDisplayMoreApps;
-		Chartboost.didDisplayMoreApps -= didDisplayMoreApps;
 		Chartboost.didFailToRecordClick -= didFailToRecordClick;
 		Chartboost.didFailToLoadRewardedVideo -= didFailToLoadRewardedVideo;
 		Chartboost.didDismissRewardedVideo -= didDismissRewardedVideo;
@@ -378,8 +327,6 @@ public class ChartboostExample: MonoBehaviour
 		Chartboost.shouldDisplayRewardedVideo -= shouldDisplayRewardedVideo;
 		Chartboost.didCompleteRewardedVideo -= didCompleteRewardedVideo;
 		Chartboost.didDisplayRewardedVideo -= didDisplayRewardedVideo;
-		Chartboost.didCacheInPlay -= didCacheInPlay;
-		Chartboost.didFailToLoadInPlay -= didFailToLoadInPlay;
 		Chartboost.didPauseClickForConfirmation -= didPauseClickForConfirmation;
 		Chartboost.willDisplayVideo -= willDisplayVideo;
 		#if UNITY_IPHONE
@@ -422,35 +369,6 @@ public class ChartboostExample: MonoBehaviour
 		AddLog("didDisplayInterstitial: " + location);
 	}
 
-	void didFailToLoadMoreApps(CBLocation location, CBImpressionError error) {
-		AddLog(string.Format("didFailToLoadMoreApps: {0} at location: {1}", error, location));
-	}
-	
-	void didDismissMoreApps(CBLocation location) {
-		AddLog(string.Format("didDismissMoreApps at location: {0}", location));
-	}
-	
-	void didCloseMoreApps(CBLocation location) {
-		AddLog(string.Format("didCloseMoreApps at location: {0}", location));
-	}
-	
-	void didClickMoreApps(CBLocation location) {
-		AddLog(string.Format("didClickMoreApps at location: {0}", location));
-	}
-	
-	void didCacheMoreApps(CBLocation location) {
-		AddLog(string.Format("didCacheMoreApps at location: {0}", location));
-	}
-	
-	bool shouldDisplayMoreApps(CBLocation location) {
-		AddLog(string.Format("shouldDisplayMoreApps at location: {0}: {1}", location, showMoreApps));
-		return showMoreApps;
-	}
-
-	void didDisplayMoreApps(CBLocation location){
-		AddLog("didDisplayMoreApps: " + location);
-	}
-
 	void didFailToRecordClick(CBLocation location, CBClickError error) {
 		AddLog(string.Format("didFailToRecordClick: {0} at location: {1}", error, location));
 	}
@@ -486,14 +404,6 @@ public class ChartboostExample: MonoBehaviour
 
 	void didDisplayRewardedVideo(CBLocation location){
 		AddLog("didDisplayRewardedVideo: " + location);
-	}
-	
-	void didCacheInPlay(CBLocation location) {
-		AddLog("didCacheInPlay called: "+location);
-	}
-
-	void didFailToLoadInPlay(CBLocation location, CBImpressionError error) {
-		AddLog(string.Format("didFailToLoadInPlay: {0} at location: {1}", error, location));
 	}
 
 	void didPauseClickForConfirmation() {

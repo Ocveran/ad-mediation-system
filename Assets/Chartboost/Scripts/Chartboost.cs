@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections;
 using System.Runtime.InteropServices;
-#if UNITY_4_6 || UNITY_5
+#if UNITY_4_6 || UNITY_5 || UNITY_2017_1_OR_NEWER
 using UnityEngine.EventSystems;
 #endif
 
@@ -228,7 +228,7 @@ namespace ChartboostSDK {
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
 		#if UNITY_ANDROID
-        [Obsolete("didDisplayInterstitial is not Available on Android Unity, it will be removed in a future release")]
+        [Obsolete("didDisplayInterstitial is not Available on Android Unity")]
         #endif
 		public static event Action<CBLocation> didDisplayInterstitial;
 
@@ -291,6 +291,7 @@ namespace ChartboostSDK {
 		/// </summary>
 		/// <returns>true if execution should proceed, false if not.</returns>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("shouldDisplayMoreApps is deprecated and no-op.")]
 		public static event Func<CBLocation, bool> shouldDisplayMoreApps;
 
 		/// <summary>
@@ -299,9 +300,7 @@ namespace ChartboostSDK {
 		///  been displayed on the screen for a given CBLocation.
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
-		#if UNITY_ANDROID
-		[Obsolete("didDisplayMoreApps is not Available on Android Unity, it will be removed in a future release")]
-        #endif
+		[Obsolete("didDisplayMoreApps is not Available on Android Unity")]
 		public static event Action<CBLocation> didDisplayMoreApps;
 
 		/// <summary>
@@ -310,6 +309,7 @@ namespace ChartboostSDK {
 		///	  been loaded from the Chartboost API servers and cached locally for a given CBLocation.
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("didCacheMoreApps is deprecated and no-op.")]
 		public static event Action<CBLocation> didCacheMoreApps;
 
 		/// <summary>
@@ -318,6 +318,7 @@ namespace ChartboostSDK {
 		///  "Clicked" is defined as clicking the creative interface for the "more applications".
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("didClickMoreApps is deprecated and no-op.")]
 		public static event Action<CBLocation> didClickMoreApps;
 
 		/// <summary>
@@ -326,6 +327,7 @@ namespace ChartboostSDK {
 		///  "Closed" is defined as clicking the close interface for the interstitial.
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("didCloseMoreApps is deprecated and no-op.")]
 		public static event Action<CBLocation> didCloseMoreApps;
 
 		/// <summary>
@@ -334,6 +336,7 @@ namespace ChartboostSDK {
 		///  "Dismissal" is defined as any action that removed the interstitial UI such as a click or close.
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("didDismissMoreApps is deprecated and no-op.")]
 		public static event Action<CBLocation> didDismissMoreApps;
 
 		/// <summary>
@@ -343,6 +346,7 @@ namespace ChartboostSDK {
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
 		/// <param name="CBImpressionError">The reason for the error defined via a CBImpressionError.</param>
+		[Obsolete("didFailToLoadMoreApps is deprecated and no-op.")]
 		public static event Action<CBLocation,CBImpressionError> didFailToLoadMoreApps;
 
 		//// <summary>
@@ -363,7 +367,7 @@ namespace ChartboostSDK {
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
 		#if UNITY_ANDROID
-		[Obsolete("didDisplayRewardedVideo is not Available on Android Unity, it will be removed in a future release")]
+		[Obsolete("didDisplayRewardedVideo is not Available on Android Unity")]
 		#endif
 		public static event Action<CBLocation> didDisplayRewardedVideo;
 
@@ -518,8 +522,8 @@ namespace ChartboostSDK {
 		///	the method will attempt to fetch data from the Chartboost API server.
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("cacheMoreApps is deprecated and no-op.")]
 		public static void cacheMoreApps(CBLocation location) {
-			CBExternal.cacheMoreApps(location);
 		}
 
 		/// <summary>
@@ -530,8 +534,9 @@ namespace ChartboostSDK {
 		/// </summary>
 		/// <returns>true if the "more applications" is cached, false if not.</returns>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("hasMoreApps is deprecated and no-op.")]
 		public static bool hasMoreApps(CBLocation location) {
-			return CBExternal.hasMoreApps(location);
+			return false;
 		}
 
 		/// <summary>
@@ -544,8 +549,8 @@ namespace ChartboostSDK {
 		///	is a no-op.
 		/// </summary>
 		/// <param name="location">The location for the Chartboost impression type.</param>
+		[Obsolete("showMoreApps is deprecated and no-op.")]
 		public static void showMoreApps(CBLocation location) {
-			CBExternal.showMoreApps(location);
 		}
 
 		/// <summary>
@@ -713,8 +718,8 @@ namespace ChartboostSDK {
 		///	Default is false.
 		/// </summary>
 		/// <param name="shouldDisplay">true if Chartboost should display a loading view, false otherwise.</param>
+		[Obsolete("setShouldDisplayLoadingViewForMoreApps is deprecated and no-op.")]
 		public static void setShouldDisplayLoadingViewForMoreApps(bool shouldDisplay) {
-			CBExternal.setShouldDisplayLoadingViewForMoreApps(shouldDisplay);
 		}
 
 		/// <summary>
@@ -816,6 +821,25 @@ namespace ChartboostSDK {
 			CBExternal.setMediation(mediator, version);
 		}
 
+		/// <summary>
+		/// GDPR Compliance flag with which you can limit our SDK's data collection.
+		/// You should call Chartboost.startWithAppId() before calling this method
+		/// otherwise the setting will not be persisted across sessions.
+		/// </summary>
+		/// <param name="limit">Set limit to true to prevent chartboost from collecting data. False otherwise.</param>
+		public static void restrictDataCollection(bool limit) {
+			CBExternal.restrictDataCollection(limit);
+		}
+
+		/// <summary>
+        ///  Mute/unmute chartboost ads.
+		/// Only supported on iOS.
+		/// </summary>
+    /// <param name="mute"> true mutes all sounds, false unmutes. Default is false.</param>
+		public static void setMuted(bool mute) {
+			CBExternal.setMuted(mute);
+		}
+
 		//////////////////////////////////////////////////////
 		/// Monobehaviour Lifecycle functionality
 		//////////////////////////////////////////////////////
@@ -872,26 +896,6 @@ namespace ChartboostSDK {
 				instance = null;
 				CBExternal.destroy();
 			}
-		}
-
-		void Update() {
-			#if UNITY_ANDROID
-			// Handle the Android back button (only if impressions are set to not use activities)
-			if (Input.GetKeyUp(KeyCode.Escape)) {
-				// Check if Chartboost wants to respond to it
-				if (CBExternal.onBackPressed()) {
-					// If so, return and ignore it
-					return;
-				}
-			}
-			#endif
-		}
-
-		void OnApplicationPause(bool paused) {
-			#if UNITY_ANDROID
-			// Manage Chartboost plugin lifecycle
-			CBExternal.pause(paused);
-			#endif
 		}
 
 		void OnDisable() {
@@ -996,56 +1000,6 @@ namespace ChartboostSDK {
 			if(didDisplayInterstitial != null)
 			{
 				didDisplayInterstitial(CBLocation.locationFromName(location));
-			}
-		}
-
-		private void didFailToLoadMoreAppsEvent(string dataString) {
-			Hashtable data = (Hashtable)CBJSON.Deserialize(dataString);
-			CBImpressionError error = impressionErrorFromInt(data["errorCode"]);
-
-			if (didFailToLoadMoreApps != null)
-				didFailToLoadMoreApps(CBLocation.locationFromName(data["location"] as string), error);
-		}
-
-		private void didDismissMoreAppsEvent(string location) {
-			doUnityPause(false, false);
-
-			if (didDismissMoreApps != null)
-				didDismissMoreApps(CBLocation.locationFromName(location));
-		}
-
-		private void didClickMoreAppsEvent(string location) {
-			if (didClickMoreApps != null)
-				didClickMoreApps(CBLocation.locationFromName(location));
-		}
-
-
-		private void didCloseMoreAppsEvent(string location) {
-			if (didCloseMoreApps != null)
-				didCloseMoreApps(CBLocation.locationFromName(location));
-		}
-
-		private void didCacheMoreAppsEvent(string location) {
-			if (didCacheMoreApps != null)
-				didCacheMoreApps(CBLocation.locationFromName(location));
-		}
-
-		private void shouldDisplayMoreAppsEvent(string location) {
-			bool shouldDisplayMoreAppsResponse = true;
-			if (shouldDisplayMoreApps != null)
-				shouldDisplayMoreAppsResponse = shouldDisplayMoreApps(CBLocation.locationFromName(location));
-			CBExternal.chartBoostShouldDisplayMoreAppsCallbackResult(shouldDisplayMoreAppsResponse);
-			if (shouldDisplayMoreAppsResponse)
-			{
-				Chartboost.showMoreApps(CBLocation.locationFromName(location));
-			}
-		}
-
-		private void didDisplayMoreAppsEvent(string location) {
-			doUnityPause(true, true);
-			if (didDisplayMoreApps != null)
-			{
-				didDisplayMoreApps(CBLocation.locationFromName(location));
 			}
 		}
 
@@ -1158,7 +1112,7 @@ namespace ChartboostSDK {
 		private static bool isPaused = false;
 		private static bool shouldPause = false;
 		private static float lastTimeScale = 0;
-#if UNITY_4_6 || UNITY_5
+#if UNITY_4_6 || UNITY_5 || UNITY_2017_1_OR_NEWER
 		// Disabling the EventSystem.current makes the object go away
 		// So keeping a reference
 		private static EventSystem kEventSystem = null;
@@ -1190,7 +1144,7 @@ namespace ChartboostSDK {
 		}
 
 		private static void disableUI(bool pause) {
-#if UNITY_4_6 || UNITY_5
+#if UNITY_4_6 || UNITY_5 || UNITY_2017_1_OR_NEWER
 			// EventSystem is Unity4.6 and later
 			if( pause && EventSystem.current )
 			{

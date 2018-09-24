@@ -15,7 +15,7 @@
 extern void UnitySendMessage(const char *, const char *, const char *);
 
 @implementation ALAdDelegateWrapper
-@synthesize isInterstitialShowing, gameObjectToNotify, isIncentReady;
+@synthesize isInterstitialShowing, gameObjectToNotify;
 
 const static NSString* methodName = @"onAppLovinEventReceived";
 
@@ -32,12 +32,9 @@ const static NSString* methodName = @"onAppLovinEventReceived";
 
 -(void) adService:(ALAdService *)adService didLoadAd:(ALAd *)ad
 {
-    [ad retain];
-    
     if([ad.type isEqual: [ALAdType typeIncentivized]])
     {
         [self callCSharpWithMessage: @"LOADEDREWARDED"];
-        self.isIncentReady = YES;
     }
     else
     {
@@ -83,21 +80,15 @@ const static NSString* methodName = @"onAppLovinEventReceived";
     if([[ad size] isEqual: [ALAdSize sizeInterstitial]])
     {
         isInterstitialShowing = NO;
-        [ALInterstitialCache shared].lastAd = nil;
-    }
-    
-    if(ad.type && [ad.type isEqual: [ALAdType typeIncentivized]])
-    {
-        isIncentReady = NO;
-    }
+        
+        [[ALInterstitialCache shared] removeAd: ad];        
+    }        
     
     if(ad.size.label && ad.type)
     {
         NSString* typeStr = [ad.type isEqual: [ALAdType typeIncentivized]] ? @"REWARDED" : [ad.size.label uppercaseString];
         [self callCSharpWithMessage: [@"HIDDEN" stringByAppendingString: typeStr]];
     }
-    
-    [ad release];
 }
 
 -(void) ad:(ALAd *)ad wasClickedIn:(UIView *)view
@@ -119,8 +110,8 @@ const static NSString* methodName = @"onAppLovinEventReceived";
 {
     [self callCSharpWithMessage: @"REWARDAPPROVED"];
     
-    NSString* amountStr = [[response objectForKey: @"amount"] retain];
-    NSString* currencyName = [[response objectForKey: @"currency"] retain];
+    NSString* amountStr = [response objectForKey: @"amount"];
+    NSString* currencyName = [response objectForKey: @"currency"];
     
     if(amountStr && currencyName)
     {
@@ -153,6 +144,28 @@ const static NSString* methodName = @"onAppLovinEventReceived";
 -(void) userDeclinedToViewAd: (ALAd*) ad
 {
     [self callCSharpWithMessage: @"USERDECLINED"];
+}
+
+- (void)ad:(ALAd *)ad didPresentFullscreenForAdView:(ALAdView *)adView
+{
+    [self callCSharpWithMessage: @"OPENEDFULLSCREEN"];
+}
+
+- (void)ad:(ALAd *)ad willDismissFullscreenForAdView:(ALAdView *)adView {}
+
+- (void)ad:(ALAd *)ad didDismissFullscreenForAdView:(ALAdView *)adView
+{
+    [self callCSharpWithMessage: @"CLOSEDFULLSCREEN"];
+}
+
+- (void)ad:(ALAd *)ad willLeaveApplicationForAdView:(ALAdView *)adView
+{
+    [self callCSharpWithMessage: @"LEFTAPPLICATION"];
+}
+
+- (void)ad:(ALAd *)ad didFailToDisplayInAdView:(ALAdView *)adView withError:(ALAdViewDisplayErrorCode)code
+{
+    [self callCSharpWithMessage: @"DISPLAYFAILED"];
 }
 
 @end

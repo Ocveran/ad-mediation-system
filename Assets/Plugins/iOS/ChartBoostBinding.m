@@ -28,8 +28,8 @@ static char* MakeStringCopy(const char* string) {
 
 void _chartBoostInit(const char *appId, const char *appSignature, const char *unityVersion)
 {
-    [[ChartBoostManager sharedManager] startChartBoostWithAppId: GetStringParam(appId) 
-        appSignature: GetStringParam(appSignature) 
+    [[ChartBoostManager sharedManager] startChartBoostWithAppId: GetStringParam(appId)
+        appSignature: GetStringParam(appSignature)
         unityVersion: GetStringParam(unityVersion)];
 }
 
@@ -69,22 +69,6 @@ BOOL _chartBoostHasRewardedVideo(const char *location)
 void _chartBoostShowRewardedVideo(const char *location)
 {
     [Chartboost showRewardedVideo: GetStringParamOrNil(location)];
-}
-
-
-void _chartBoostCacheMoreApps(const char *location)
-{
-    [Chartboost cacheMoreApps: GetStringParamOrNil(location)];
-}
-
-BOOL _chartBoostHasMoreApps(const char *location)
-{
-	return [Chartboost hasMoreApps: GetStringParamOrNil(location)];
-}
-
-void _chartBoostShowMoreApps(const char *location)
-{
-    [Chartboost showMoreApps: GetStringParamOrNil(location)];
 }
 
 void _chartBoostCacheInPlay(const char *location)
@@ -202,15 +186,6 @@ void _chartBoostShouldDisplayRewardedVideoCallbackResult(BOOL result)
     }
 }
 
-void _chartBoostShouldDisplayMoreAppsCallbackResult(BOOL result)
-{
-    [ChartBoostManager sharedManager].unityResponseShouldDisplayMoreApps = result;
-    if(!result)
-    {
-        [ChartBoostManager sharedManager].hasCheckedWithUnityToDisplayMoreApps = NO;
-    }
-}
-
 BOOL _chartBoostGetAutoCacheAds()
 {
     return [Chartboost getAutoCacheAds];
@@ -224,11 +199,6 @@ void _chartBoostSetAutoCacheAds(BOOL autoCacheAds)
 void _chartBoostSetStatusBarBehavior(int statusBarBehavior)
 {
 	[Chartboost setStatusBarBehavior:(CBStatusBarBehavior)statusBarBehavior];
-}
-
-void _chartBoostSetShouldDisplayLoadingViewForMoreApps(BOOL shouldDisplay)
-{
-    [Chartboost setShouldDisplayLoadingViewForMoreApps:shouldDisplay];
 }
 
 void _chartBoostSetShouldPrefetchVideoContent(BOOL shouldPrefetch)
@@ -256,4 +226,14 @@ void _chartBoostTrackLevelInfo(const char * eventLabel, int levelType, int mainL
 void _chartBoostSetMediation(int mediator, const char *version)
 {
     [Chartboost setMediation:(CBMediation)mediator withVersion:GetStringParamOrNil(version)];
+}
+
+void _chartBoostRestrictDataCollection(BOOL shouldRestrict)
+{
+    [Chartboost restrictDataCollection:shouldRestrict];
+}
+
+void _chartBoostSetMuted(BOOL muted)
+{
+    [Chartboost setMuted:muted];
 }

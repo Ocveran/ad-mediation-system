@@ -1,378 +1,722 @@
 ﻿
 #define _MS_ADMOB
 
-#if _MS_ADMOB
-
 using UnityEngine;
 using System;
-using System.Collections;
+using System.Collections.Generic;
+using Boomlagoon.JSON;
+
+#if _MS_ADMOB
 using GoogleMobileAds;
 using GoogleMobileAds.Api;
+#endif
 
 namespace Virterix {
     namespace AdMediation {
 
-        public class GoogleMobileAdsDemoHandler : IDefaultInAppPurchaseProcessor {
-            private readonly string[] validSkus = { "android.test.purchased" };
-
-            //Will only be sent on a success.
-            public void ProcessCompletedInAppPurchase(IInAppPurchaseResult result) {
-                result.FinishPurchase();
-            }
-
-            //Check SKU against valid SKUs.
-            public bool IsValidPurchase(string sku) {
-                foreach (string validSku in validSkus) {
-                    if (sku == validSku) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            //Return the app's public key.
-            public string AndroidPublicKey {
-                //In a real app, return public key instead of null.
-                get { return null; }
-            }
-        }
-
         public class AdMobAdapter : AdNetworkAdapter {
+
+            public const string _PLACEMENT_PARAMETERS_FOLDER = "AdMob";
+            public const string _BANNER_ID_KEY = "bannerId";
+            public const string _INTERSTITIAL_ID_KEY = "interstitialId";
+            public const string _VIDEO_ID_KEY = "videoId";
+            public const string _REWARD_ID_KEY = "rewardVideoId";
+
+            public enum AdMobBannerSize {
+                SmartBanner,
+                Banner,
+                MediumRectangle,
+                Leaderboard,
+                IABBanner
+            }
+
+            public enum AdMobBannerPosition {
+                Center,
+                Top,
+                TopLeft,
+                TopRight,
+                Bottom,
+                BottomLeft,
+                BottomRight
+            }
 
             [System.Serializable]
             public struct AdMobParameters {
-                public string bannerUnitId;
-                public string interstitialUnitId;
-                public string videoUnitId;
+                public string m_bannerUnitId;
+                public string m_interstitialUnitId;
+                public string m_videoUnitId;
+                public string m_rewardVideoUnitId;
             }
 
             [SerializeField]
             public AdMobParameters m_defaultAndroidParams;
             [SerializeField]
-            public AdMobParameters m_defaultIOSParams;
+            public AdMobParameters m_defaultIOSParams;        
+            public bool m_tagForChildDirectedTreatment = false;
 
-            private BannerView m_bannerView;
-            private InterstitialAd m_interstitial;
-            private InterstitialAd m_videoInterstitial;
+            protected override string PlacementParametersFolder {
+                get {
+                    return _PLACEMENT_PARAMETERS_FOLDER + "/";
+                }
+            }
+
+#if _MS_ADMOB
+
+            public class AdMobPlacementData : PlacementData {
+                public AdMobPlacementData() : base() {
+                }
+                public AdMobPlacementData(AdType adType, string adID, string placementName = _PLACEMENT_DEFAULT_NAME) :
+                    base(adType, adID, placementName) {
+                }
+
+                public AdPosition m_bannerPosition;
+                public AdSize m_bannerSize;
+
+                public EventHandler<EventArgs> onAdLoadedHandler;
+                public EventHandler<AdFailedToLoadEventArgs> onAdFailedToLoadHandler;
+                public EventHandler<EventArgs> onAdOpeningHandler;
+                public EventHandler<EventArgs> onAdClosedHandler;
+                public EventHandler<EventArgs> onAdLeavingApplicationHandler;
+            }
+
+            private RewardBasedVideoAd m_rewardVideo;
             private static string m_outputMessage = "";
 
             string m_bannerUnitId;
             string m_interstitialUnitId;
             string m_videoUnitId;
+            string m_rewardVideoUnitId;
 
             bool m_isBannerLoaded;
 
-            public AdSize BannerSize {
-                set {
-                    m_adSize = value;
-                }
-            }
-            AdSize m_adSize = AdSize.SmartBanner;
-
-            public AdPosition BannerPosition {
-                set {
-                    m_adPosition = value;
-                }
-            }
-            AdPosition m_adPosition = AdPosition.Bottom;
-
+            // Default Placements
+            AdMobPlacementData m_bannerPlacement;
+            AdMobPlacementData m_interstitialPlacement;
+            AdMobPlacementData m_videoPlacement;
+            AdMobPlacementData m_rewardVideoPlacement;
+            
             public static string OutputMessage {
                 set { m_outputMessage = value; }
             }
 
             void Awake() {
+                m_rewardVideo = RewardBasedVideoAd.Instance;
+                m_rewardVideo.OnAdLoaded += this.HandleRewardBasedVideoLoaded;
+                m_rewardVideo.OnAdFailedToLoad += this.HandleRewardBasedVideoFailedToLoad;
+                m_rewardVideo.OnAdOpening += this.HandleRewardBasedVideoOpened;
+                m_rewardVideo.OnAdStarted += this.HandleRewardBasedVideoStarted;
+                m_rewardVideo.OnAdRewarded += this.HandleRewardBasedVideoRewarded;
+                m_rewardVideo.OnAdClosed += this.HandleRewardBasedVideoClosed;
+                m_rewardVideo.OnAdLeavingApplication += this.HandleRewardBasedVideoLeftApplication;
             }
 
-            protected override void InitializeParameters(System.Collections.Generic.Dictionary<string, string> parameters) {
-                base.InitializeParameters(parameters);
+            protected override void InitializeParameters(System.Collections.Generic.Dictionary<string, string> parameters, JSONArray jsonPlacements) {
+                base.InitializeParameters(parameters, jsonPlacements);
 
                 if (parameters != null) {
                     try {
-                        m_bannerUnitId = parameters["bannerId"];
-                        m_interstitialUnitId = parameters["interstitialId"];
-                        m_videoUnitId = parameters["videoId"];
+                        m_bannerUnitId = parameters[_BANNER_ID_KEY];
+                        m_interstitialUnitId = parameters[_INTERSTITIAL_ID_KEY];
+                        m_videoUnitId = parameters[_VIDEO_ID_KEY];
+                        m_rewardVideoUnitId = parameters[_REWARD_ID_KEY];
                     }
                     catch {
                         m_bannerUnitId = "";
                         m_interstitialUnitId = "";
                         m_videoUnitId = "";
+                        m_rewardVideoUnitId = "";
                     }
-                } else {
+                }
+                else {
 #if UNITY_ANDROID
-                    m_bannerUnitId = m_defaultAndroidParams.bannerUnitId;
-                    m_interstitialUnitId = m_defaultAndroidParams.interstitialUnitId;
-                    m_videoUnitId = m_defaultAndroidParams.videoUnitId;
+                    m_bannerUnitId = m_defaultAndroidParams.m_bannerUnitId;
+                    m_interstitialUnitId = m_defaultAndroidParams.m_interstitialUnitId;
+                    m_videoUnitId = m_defaultAndroidParams.m_videoUnitId;
+                    m_rewardVideoUnitId = m_defaultAndroidParams.m_rewardVideoUnitId;
 #elif UNITY_IOS
-                    m_bannerUnitId = m_defaultIOSParams.bannerUnitId;
-                    m_interstitialUnitId = m_defaultIOSParams.interstitialUnitId;
-                    m_videoUnitId = m_defaultIOSParams.videoUnitId;
+                    m_bannerUnitId = m_defaultIOSParams.m_bannerUnitId;
+                    m_interstitialUnitId = m_defaultIOSParams.m_interstitialUnitId;
+                    m_videoUnitId = m_defaultIOSParams.m_videoUnitId;
+                    m_rewardVideoUnitId = m_defaultIOSParams.m_rewardVideoUnitId;
 #endif
                 }
-            }
 
-            public override void Prepare(AdType adType) {
-                if (!IsSupported(adType)) {
-                    return;
+                if (m_bannerUnitId.Length > 0) {
+                    m_bannerPlacement = new AdMobPlacementData(AdType.Banner, m_bannerUnitId);
+                    m_bannerPlacement.m_placementParams = GetPlacementParams(AdType.Banner, _PLACEMENT_DEFAULT_NAME);
+                    AddPlacement(m_bannerPlacement);
                 }
 
-                switch (adType) {
-                    case AdType.Banner:
-                        RequestBanner(m_bannerUnitId, m_adSize, m_adPosition);
-                        break;
-                    case AdType.Interstitial:
-                        RequestInterstitial(m_interstitialUnitId);
-                        break;
-                    case AdType.Video:
-                        RequestVideoInterstitial(m_videoUnitId);
-                        break;
+                if (m_interstitialUnitId.Length > 0) {
+                    m_interstitialPlacement = new AdMobPlacementData(AdType.Interstitial, m_interstitialUnitId);
+                    AddPlacement(m_interstitialPlacement);
+                }
+
+                if (m_videoUnitId.Length > 0) {
+                    m_videoPlacement = new AdMobPlacementData(AdType.Video, m_videoUnitId);
+                    AddPlacement(m_videoPlacement);
                 }
             }
 
-            public override bool Show(AdType adType) {
-                if (IsReady(adType)) {
+            protected override void InitializePlacementData(PlacementData placement, JSONValue jsonPlacementData) {
+                base.InitializePlacementData(placement, jsonPlacementData);
+            }
+
+            protected override PlacementData CreatePlacementData(JSONValue jsonPlacementData) {
+                PlacementData placementData = new AdMobPlacementData();
+                return placementData;
+            }
+
+            public override void Prepare(AdType adType, PlacementData placement = null) {
+                AdMobPlacementData adMobPlacementData = placement == null ? null : placement as AdMobPlacementData;
+
+                if (GetAdState(adType, placement) != AdState.Loading) {
                     switch (adType) {
                         case AdType.Banner:
-                            IsBannerVisibled = true;
-                            m_bannerView.Show();
+                            RequestBanner(adMobPlacementData);
                             break;
                         case AdType.Interstitial:
-                            m_interstitial.Show();
+                            RequestInterstitial(adMobPlacementData);
                             break;
                         case AdType.Video:
-                            m_videoInterstitial.Show();
+                            RequestVideoInterstitial(adMobPlacementData);
+                            break;
+                        case AdType.Incentivized:
+                            RequestRewardVideo(m_rewardVideoUnitId);
                             break;
                     }
-                    return true;
-                } else {
-                    return false;
                 }
             }
 
-            public override void Hide(AdType adType) {
+            public override bool Show(AdType adType, PlacementData placement = null) {
+                AdMobPlacementData adMobPlacementData = placement == null ? null : placement as AdMobPlacementData;
+                bool isAdAvailable = GetAdState(adType, adMobPlacementData) == AdState.Available;
+
+                if (adType == AdType.Banner || adType == AdType.Native) {
+                    adMobPlacementData.m_isBannerAdTypeVisibled = true;
+                }
+
+                if (isAdAvailable) {
+                    switch (adType) {
+                        case AdType.Banner:
+                            BannerView bannerView = placement.m_adView as BannerView;
+                            isAdAvailable = bannerView != null;
+                            if (isAdAvailable) {
+                                bannerView.Show();
+                                bannerView.SetPosition(adMobPlacementData.m_bannerPosition);
+                            }
+                            break;
+                        case AdType.Interstitial:
+                            InterstitialAd interstitial = placement.m_adView as InterstitialAd;
+                            interstitial.Show();
+                            break;
+                        case AdType.Video:
+                            InterstitialAd videoInterstitial = placement.m_adView as InterstitialAd;
+                            videoInterstitial.Show();
+                            break;
+                        case AdType.Incentivized:
+                            m_rewardVideo.Show();
+                            break;
+                    }
+                }
+                return isAdAvailable;
+            }
+
+            public override void Hide(AdType adType, PlacementData placementData = null) {
+                AdMobPlacementData adMobPlacementData = placementData == null ? null : placementData as AdMobPlacementData;
+
                 switch (adType) {
                     case AdType.Banner:
-                        IsBannerVisibled = false;
-                        if (m_isBannerLoaded) {
-                            m_bannerView.Hide();
-                            AddEvent(AdType.Banner, AdEvent.Hide);
+                        adMobPlacementData.m_isBannerAdTypeVisibled = false;
+
+                        if (GetAdState(adType, placementData) == AdState.Available) {
+                            BannerView bannerView = placementData.m_adView as BannerView;
+                            bannerView.Hide();
+                        }
+                        AddEvent(AdType.Banner, AdEvent.Hide, placementData);
+                        break;
+                }
+            }
+
+            public override void HideBannerTypeAdWithoutNotify(AdType adType, PlacementData placementData = null) {
+                AdMobPlacementData adMobPlacementData = placementData == null ? null : placementData as AdMobPlacementData;
+                adMobPlacementData.m_isBannerAdTypeVisibled = false;
+
+                switch (adType) {
+                    case AdType.Banner:
+                        if (GetAdState(adType, placementData) == AdState.Available) {
+                            BannerView bannerView = placementData.m_adView as BannerView;
+                            bannerView.Hide();
                         }
                         break;
                 }
             }
 
-            public override bool IsReady(AdType adType) {
+            public override bool IsReady(AdType adType, PlacementData placement = null) {
 #if UNITY_EDITOR
                 return false;
 #endif
+                bool isReady = GetAdState(adType, placement) == AdState.Available;
+                AdMobPlacementData adMobPlacementData = placement == null ? null : placement as AdMobPlacementData;
 
-                switch (adType) {
-                    case AdType.Banner:
-                        return m_isBannerLoaded;
-                    case AdType.Interstitial:
-                        if (m_interstitial == null) {
-                            return false;
-                        } else {
-                            return m_interstitial.IsLoaded();
-                        }
-                    case AdType.Video:
-                        if (m_videoInterstitial == null) {
-                            return false;
-                        } else {
-                            return m_videoInterstitial.IsLoaded();
-                        }
-                    default:
-                        return false;
+                switch(adType) {
+                    case AdType.Incentivized:
+                        isReady = m_rewardVideo.IsLoaded();
+                        break;
                 }
+
+                return isReady;
             }
 
-            private void RequestBanner(string adUnitId, AdSize adSize, AdPosition adPosition) {
-                DestroyBanner();
+            public AdSize ConvertToAdSize(AdMobBannerSize bannerSize) {
+                AdSize admobAdSize = AdSize.Banner;
 
-                // Create a 320x50 banner at the top of the screen.
-                m_bannerView = new BannerView(adUnitId, adSize, adPosition);
+                switch (bannerSize) {
+                    case AdMobBannerSize.Banner:
+                        admobAdSize = AdSize.Banner;
+                        break;
+                    case AdMobBannerSize.IABBanner:
+                        admobAdSize = AdSize.IABBanner;
+                        break;
+                    case AdMobBannerSize.SmartBanner:
+                        admobAdSize = AdSize.SmartBanner;
+                        break;
+                    case AdMobBannerSize.Leaderboard:
+                        admobAdSize = AdSize.Leaderboard;
+                        break;
+                    case AdMobBannerSize.MediumRectangle:
+                        admobAdSize = AdSize.MediumRectangle;
+                        break;
+                }
+                return admobAdSize;
+            }
+
+            public AdPosition ConvertToAdPosition(AdMobBannerPosition bannerPosition) {
+                AdPosition admobAdPosition = AdPosition.Center;
+
+                switch (bannerPosition) {
+                    case AdMobBannerPosition.Bottom:
+                        admobAdPosition = AdPosition.Bottom;
+                        break;
+                    case AdMobBannerPosition.BottomLeft:
+                        admobAdPosition = AdPosition.BottomLeft;
+                        break;
+                    case AdMobBannerPosition.BottomRight:
+                        admobAdPosition = AdPosition.BottomRight;
+                        break;
+                    case AdMobBannerPosition.Top:
+                        admobAdPosition = AdPosition.Top;
+                        break;
+                    case AdMobBannerPosition.TopLeft:
+                        admobAdPosition = AdPosition.TopLeft;
+                        break;
+                    case AdMobBannerPosition.TopRight:
+                        admobAdPosition = AdPosition.TopRight;
+                        break;
+                    case AdMobBannerPosition.Center:
+                        admobAdPosition = AdPosition.Center;
+                        break;
+                }
+                return admobAdPosition;
+            }
+
+            private void RequestBanner(AdMobPlacementData placement) {
+                DestroyBanner(placement);
+
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.RequestBanner() " + " placement: " + placement.PlacementName);
+#endif
+
+                SetAdState(AdType.Banner, placement, AdState.Loading);
+
+                AdMobBannerPlacementParameters bannerParams = placement.m_placementParams as AdMobBannerPlacementParameters;
+                placement.m_bannerSize = ConvertToAdSize(bannerParams.m_bannerSize);
+                placement.m_bannerPosition = ConvertToAdPosition(bannerParams.m_bannerPosition);
+
+                BannerView bannerView = new BannerView(placement.m_adID, placement.m_bannerSize, placement.m_bannerPosition);
+                placement.m_adView = bannerView;
+                bannerView.Hide();
+
                 // Register for ad events.
-                m_bannerView.OnAdLoaded += HandleAdLoaded;
-                m_bannerView.OnAdFailedToLoad += HandleAdFailedToLoad;
-                m_bannerView.OnAdOpening += HandleAdOpened;
-                m_bannerView.OnAdClosed += HandleAdClosed;
+
+                placement.onAdLoadedHandler = delegate (object sender, EventArgs args) {
+                    HandleAdLoaded(placement, sender, args);
+                };
+                bannerView.OnAdLoaded += placement.onAdLoadedHandler;
+
+                placement.onAdFailedToLoadHandler = delegate (object sender, AdFailedToLoadEventArgs args) {
+                    HandleAdFailedToLoad(placement, sender, args);
+                };
+                bannerView.OnAdFailedToLoad += placement.onAdFailedToLoadHandler;
+
+                placement.onAdOpeningHandler = delegate (object sender, EventArgs args) {
+                    HandleAdOpened(placement, sender, args);
+                };
+                bannerView.OnAdOpening += placement.onAdOpeningHandler;
+
+                placement.onAdClosedHandler = delegate (object sender, EventArgs args) {
+                    HandleAdClosed(placement, sender, args);
+                };
+                bannerView.OnAdClosed += placement.onAdClosedHandler;
+
+                placement.onAdLeavingApplicationHandler = delegate (object sender, EventArgs args) {
+                    HandleAdLeftApplication(placement, sender, args);
+                };
+                bannerView.OnAdLeavingApplication += placement.onAdLeavingApplicationHandler;
+
                 // Load a banner ad.
-                m_bannerView.LoadAd(CreateAdRequest());
+                bannerView.LoadAd(CreateAdRequest());
             }
 
-            void DestroyBanner() {
+            void DestroyBanner(AdMobPlacementData placement) {
                 m_isBannerLoaded = false;
-                if (m_bannerView != null) {
-                    m_bannerView.OnAdLoaded -= HandleAdLoaded;
-                    m_bannerView.OnAdFailedToLoad -= HandleAdFailedToLoad;
-                    m_bannerView.OnAdOpening -= HandleAdOpened;
-                    m_bannerView.OnAdClosed -= HandleAdClosed;
-                    m_bannerView.Destroy();
-                    m_bannerView = null;
+
+                if (placement.m_adView != null) {
+                    BannerView bannerView = placement.m_adView as BannerView;
+                    placement.m_adView = null;
+
+                    bannerView.OnAdLoaded -= placement.onAdLoadedHandler;
+                    bannerView.OnAdFailedToLoad -= placement.onAdFailedToLoadHandler;
+                    bannerView.OnAdOpening -= placement.onAdOpeningHandler;
+                    bannerView.OnAdClosed -= placement.onAdClosedHandler;
+                    bannerView.OnAdLeavingApplication -= placement.onAdLeavingApplicationHandler;
+
+                    bannerView.Destroy();
+                    SetAdState(AdType.Banner, placement, AdState.Uncertain);
                 }
             }
 
-            private void RequestInterstitial(string adUnitId) {
-                DestroyInterstitial();
+            private void RequestInterstitial(AdMobPlacementData placement) {
+                DestroyInterstitial(placement);
+
+                SetAdState(AdType.Interstitial, placement, AdState.Loading);
 
                 // Create an interstitial.
-                m_interstitial = new InterstitialAd(adUnitId);
+                InterstitialAd interstitial = new InterstitialAd(placement.m_adID);
+                placement.m_adView = interstitial;
+
                 // Register for ad events.
-                m_interstitial.OnAdLoaded += HandleInterstitialLoaded;
-                m_interstitial.OnAdFailedToLoad += HandleInterstitialFailedToLoad;
-                m_interstitial.OnAdOpening += HandleInterstitialOpened;
-                m_interstitial.OnAdClosed += HandleInterstitialClosed;
-                m_interstitial.LoadAd(CreateAdRequest());
+                placement.onAdLoadedHandler = delegate (object sender, EventArgs args) {
+                    HandleInterstitialLoaded(placement, sender, args);
+                };
+                interstitial.OnAdLoaded += placement.onAdLoadedHandler;
+
+                placement.onAdFailedToLoadHandler = delegate (object sender, AdFailedToLoadEventArgs args) {
+                    HandleInterstitialFailedToLoad(placement, sender, args);
+                };
+                interstitial.OnAdFailedToLoad += placement.onAdFailedToLoadHandler;
+
+                placement.onAdOpeningHandler = delegate (object sender, EventArgs args) {
+                    HandleInterstitialOpened(placement, sender, args);
+                };
+                interstitial.OnAdOpening += placement.onAdOpeningHandler;
+
+                placement.onAdClosedHandler = delegate (object sender, EventArgs args) {
+                    HandleInterstitialClosed(placement, sender, args);
+                };
+                interstitial.OnAdClosed += placement.onAdClosedHandler;
+
+                placement.onAdLeavingApplicationHandler = delegate (object sender, EventArgs args) {
+                    HandleInterstitialLeftApplication(placement, sender, args);
+                };
+                interstitial.OnAdLeavingApplication += placement.onAdLeavingApplicationHandler;
+
+                interstitial.LoadAd(CreateAdRequest());
             }
 
-            void DestroyInterstitial() {
-                if (m_interstitial != null) {
-                    m_interstitial.OnAdLoaded -= HandleInterstitialLoaded;
-                    m_interstitial.OnAdFailedToLoad -= HandleInterstitialFailedToLoad;
-                    m_interstitial.OnAdOpening -= HandleInterstitialOpened;
-                    m_interstitial.OnAdClosed -= HandleInterstitialClosed;
-                    m_interstitial.Destroy();
-                    m_interstitial = null;
+            void DestroyInterstitial(AdMobPlacementData placement) {
+                if (placement.m_adView != null) {
+                    InterstitialAd interstitial = placement.m_adView as InterstitialAd;
+                    placement.m_adView = null;
+
+                    interstitial.OnAdLoaded -= placement.onAdLoadedHandler;
+                    interstitial.OnAdFailedToLoad -= placement.onAdFailedToLoadHandler;
+                    interstitial.OnAdOpening -= placement.onAdOpeningHandler;
+                    interstitial.OnAdClosed -= placement.onAdClosedHandler;
+                    interstitial.OnAdLeavingApplication -= placement.onAdLeavingApplicationHandler;
+
+                    interstitial.Destroy();
+                    SetAdState(AdType.Interstitial, placement, AdState.Uncertain);
                 }
             }
 
-            private void RequestVideoInterstitial(string adUnitId) {
-                DestroyVideoInterstitial();
+            private void RequestVideoInterstitial(AdMobPlacementData placement) {
+                DestroyVideoInterstitial(placement);
+
+                SetAdState(AdType.Video, placement, AdState.Loading);
 
                 // Create an interstitial.
-                m_videoInterstitial = new InterstitialAd(adUnitId);
+                InterstitialAd videoInterstitial = new InterstitialAd(placement.m_adID);
+                placement.m_adView = videoInterstitial;
+
                 // Register for ad events.
-                m_videoInterstitial.OnAdLoaded += HandleVideoInterstitialLoaded;
-                m_videoInterstitial.OnAdFailedToLoad += HandleVideoInterstitialFailedToLoad;
-                m_videoInterstitial.OnAdOpening += HandleVideoInterstitialOpened;
-                m_videoInterstitial.OnAdClosed += HandleVideoInterstitialClosed;
-                m_videoInterstitial.LoadAd(CreateAdRequest());
+                placement.onAdLoadedHandler = delegate (object sender, EventArgs args) {
+                    HandleVideoInterstitialLoaded(placement, sender, args);
+                };
+                videoInterstitial.OnAdLoaded += placement.onAdLoadedHandler;
+
+                placement.onAdFailedToLoadHandler = delegate (object sender, AdFailedToLoadEventArgs args) {
+                    HandleVideoInterstitialFailedToLoad(placement, sender, args);
+                };
+                videoInterstitial.OnAdFailedToLoad += placement.onAdFailedToLoadHandler;
+
+                placement.onAdOpeningHandler = delegate (object sender, EventArgs args) {
+                    HandleVideoInterstitialOpened(placement, sender, args);
+                };
+                videoInterstitial.OnAdOpening += placement.onAdOpeningHandler;
+
+                placement.onAdClosedHandler = delegate (object sender, EventArgs args) {
+                    HandleVideoInterstitialClosed(placement, sender, args);
+                };
+                videoInterstitial.OnAdClosed += placement.onAdClosedHandler;
+
+                videoInterstitial.LoadAd(CreateAdRequest());
             }
 
-            void DestroyVideoInterstitial() {
-                if (m_videoInterstitial != null) {
-                    m_videoInterstitial.OnAdLoaded -= HandleVideoInterstitialLoaded;
-                    m_videoInterstitial.OnAdFailedToLoad -= HandleVideoInterstitialFailedToLoad;
-                    m_videoInterstitial.OnAdOpening -= HandleVideoInterstitialOpened;
-                    m_videoInterstitial.OnAdClosed -= HandleVideoInterstitialClosed;
-                    m_videoInterstitial.Destroy();
-                    m_videoInterstitial = null;
+            void DestroyVideoInterstitial(AdMobPlacementData placement) {
+                if (placement.m_adView != null) {
+                    InterstitialAd videoInterstitial = placement.m_adView as InterstitialAd;
+                    placement.m_adView = null;
+
+                    videoInterstitial.OnAdLoaded -= placement.onAdLoadedHandler;
+                    videoInterstitial.OnAdFailedToLoad -= placement.onAdFailedToLoadHandler;
+                    videoInterstitial.OnAdOpening -= placement.onAdOpeningHandler;
+                    videoInterstitial.OnAdClosed -= placement.onAdClosedHandler;
+
+                    videoInterstitial.Destroy();
+                    SetAdState(AdType.Video, placement, AdState.Uncertain);
                 }
+            }
+
+            private void RequestRewardVideo(string adUnitId) {
+                SetAdState(AdType.Interstitial, null, AdState.Loading);
+                m_rewardVideo.LoadAd(CreateAdRequest(), adUnitId);
             }
 
             // Returns an ad request with custom ad targeting.
             private AdRequest CreateAdRequest() {
-                return new AdRequest.Builder()
-                        .TagForChildDirectedTreatment(false)
-                        .AddExtra("color_bg", "9B30FF")
+                AdRequest request = new AdRequest.Builder()
+                        .TagForChildDirectedTreatment(m_tagForChildDirectedTreatment)
+                        .AddExtra("color_bg", "9B30FF") /*
+                        .AddTestDevice(AdRequest.TestDeviceSimulator)
+                        .AddTestDevice("0174B8AAC6D39B5DD89D5CCE260726AF")*/
                         .Build();
+                return request;
             }
 
             //------------------------------------------------------------------------
-            #region Banner callback handlers
+#region Banner callback handlers
 
-            public void HandleAdLoaded(object sender, EventArgs args) {
-                print("HandleAdLoaded event received.");
-                if (!m_isBannerLoaded) {
-                    m_isBannerLoaded = true;
-                    AddEvent(AdType.Banner, AdEvent.Prepared);
-                    if (!IsBannerVisibled) {
-                        m_bannerView.Hide();
-                    }
+            public void HandleAdLoaded(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleAdLoaded() " + " placement: " + placement.PlacementName +
+                    " isVisibled: " + placement.m_isBannerAdTypeVisibled);
+#endif
+
+                SetAdState(AdType.Banner, placement, AdState.Available);
+                BannerView bannerView = placement.m_adView as BannerView;
+                if (placement.m_isBannerAdTypeVisibled) {
+                    bannerView.Show();
+                    bannerView.SetPosition(placement.m_bannerPosition);
                 }
+                else {
+                    bannerView.Hide();
+                }
+                AddEvent(AdType.Banner, AdEvent.Prepared, placement);
             }
 
-            public void HandleAdFailedToLoad(object sender, AdFailedToLoadEventArgs args) {
-                print("HandleFailedToReceiveAd event received with message: " + args.Message);
-                AddEvent(AdType.Banner, AdEvent.PrepareFailure);
+            public void HandleAdFailedToLoad(AdMobPlacementData placement, object sender, AdFailedToLoadEventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleAdFailedToLoad() " + " placement: " + placement.PlacementName +
+                    " message: " + args.Message);
+#endif
+                DestroyBanner(placement);
+                AddEvent(AdType.Banner, AdEvent.PrepareFailure, placement);
             }
 
-            public void HandleAdOpened(object sender, EventArgs args) {
-                print("HandleAdOpened event received");
-                AddEvent(AdType.Banner, AdEvent.Show);
+            public void HandleAdOpened(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleAdOpened() " +" placement: " + placement.PlacementName);
+#endif
+                AddEvent(AdType.Banner, AdEvent.Show, placement);
             }
 
-            void HandleAdClosing(object sender, EventArgs args) {
-                print("HandleAdClosing event received");
+            void HandleAdClosing(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleAdClosing() " + " placement: " + placement.PlacementName);
+#endif
             }
 
-            public void HandleAdClosed(object sender, EventArgs args) {
-                print("HandleAdClosed event received");
+            public void HandleAdClosed(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleAdClosed() " + " placement: " + placement.PlacementName);
+#endif
             }
 
-            public void HandleAdLeftApplication(object sender, EventArgs args) {
-                print("HandleAdLeftApplication event received");
+            public void HandleAdLeftApplication(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleAdLeftApplication() " + " placement: " + placement.PlacementName);
+#endif
             }
 
-            #endregion // Banner callback handlers
+#endregion // Banner callback handlers
 
             //------------------------------------------------------------------------
-            #region Interstitial callback handlers
+#region Interstitial callback handlers
 
-            public void HandleInterstitialLoaded(object sender, EventArgs args) {
-                print("HandleInterstitialLoaded event received.");
-                AddEvent(AdType.Interstitial, AdEvent.Prepared);
+            public void HandleInterstitialLoaded(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleInterstitialLoaded()");
+#endif
+                SetAdState(AdType.Interstitial, placement, AdState.Available);
+                AddEvent(AdType.Interstitial, AdEvent.Prepared, placement);
             }
 
-            public void HandleInterstitialFailedToLoad(object sender, AdFailedToLoadEventArgs args) {
-                print("HandleInterstitialFailedToLoad event received with message: " + args.Message);
-                AddEvent(AdType.Interstitial, AdEvent.PrepareFailure);
+            public void HandleInterstitialFailedToLoad(AdMobPlacementData placement, object sender, AdFailedToLoadEventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleInterstitialFailedToLoad() message: " + args.Message);
+#endif
+                DestroyInterstitial(placement);
+                AddEvent(AdType.Interstitial, AdEvent.PrepareFailure, placement);
             }
 
-            public void HandleInterstitialOpened(object sender, EventArgs args) {
-                print("HandleInterstitialOpened event received");
-                AddEvent(AdType.Interstitial, AdEvent.Show);
+            public void HandleInterstitialOpened(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleInterstitialOpened()");
+#endif
+                AddEvent(AdType.Interstitial, AdEvent.Show, placement);
             }
 
-            void HandleInterstitialClosing(object sender, EventArgs args) {
-                print("HandleInterstitialClosing event received");
+            void HandleInterstitialClosing(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleInterstitialClosing()");
+#endif
             }
 
-            public void HandleInterstitialClosed(object sender, EventArgs args) {
-                print("HandleInterstitialClosed event received");
-                AddEvent(AdType.Interstitial, AdEvent.Hide);
+            public void HandleInterstitialClosed(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleInterstitialClosed()");
+#endif
+                DestroyInterstitial(placement);
+                AddEvent(AdType.Interstitial, AdEvent.Hide, placement);
             }
 
-            public void HandleInterstitialLeftApplication(object sender, EventArgs args) {
-                print("HandleInterstitialLeftApplication event received");
+            public void HandleInterstitialLeftApplication(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                print("AdMobAdapter.HandleInterstitialLeftApplication()");
+#endif
             }
 
-            #endregion // Interstitial callback handlers
+#endregion // Interstitial callback handlers
 
             //------------------------------------------------------------------------
-            #region Video Interstitial callback handlers
+#region Video Interstitial callback handlers
 
-            public void HandleVideoInterstitialLoaded(object sender, EventArgs args) {
+            public void HandleVideoInterstitialLoaded(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
                 print("HandleInterstitialLoaded event received.");
-                AddEvent(AdType.Video, AdEvent.Prepared);
+#endif
+                SetAdState(AdType.Video, placement, AdState.Available);
+                AddEvent(AdType.Video, AdEvent.Prepared, placement);
             }
 
-            public void HandleVideoInterstitialFailedToLoad(object sender, AdFailedToLoadEventArgs args) {
+            public void HandleVideoInterstitialFailedToLoad(AdMobPlacementData placement, object sender, AdFailedToLoadEventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
                 print("HandleInterstitialFailedToLoad event received with message: " + args.Message);
-                AddEvent(AdType.Video, AdEvent.PrepareFailure);
+#endif
+                DestroyVideoInterstitial(placement);
+                AddEvent(AdType.Video, AdEvent.PrepareFailure, placement);
             }
 
-            public void HandleVideoInterstitialOpened(object sender, EventArgs args) {
+            public void HandleVideoInterstitialOpened(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
                 print("HandleInterstitialOpened event received");
-                AddEvent(AdType.Video, AdEvent.Show);
+#endif
+                AddEvent(AdType.Video, AdEvent.Show, placement);
             }
 
-            void HandleVideoInterstitialClosing(object sender, EventArgs args) {
+            void HandleVideoInterstitialClosing(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
                 print("HandleInterstitialClosing event received");
+#endif
             }
 
-            public void HandleVideoInterstitialClosed(object sender, EventArgs args) {
+            public void HandleVideoInterstitialClosed(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
                 print("HandleInterstitialClosed event received");
-                AddEvent(AdType.Video, AdEvent.Hide);
+#endif
+                DestroyVideoInterstitial(placement);
+                AddEvent(AdType.Video, AdEvent.Hide, placement);
             }
 
-            public void HandleVideoInterstitialLeftApplication(object sender, EventArgs args) {
+            public void HandleVideoInterstitialLeftApplication(AdMobPlacementData placement, object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
                 print("HandleInterstitialLeftApplication event received");
+#endif
             }
 
-            #endregion  // Video Interstitial callback handlers
+#endregion  // Video Interstitial callback handlers
+
+            //------------------------------------------------------------------------
+#region Reward Video callback handlers
+
+            public void HandleRewardBasedVideoLoaded(object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoLoaded event received");
+#endif
+                SetAdState(AdType.Incentivized, null, AdState.Available);
+                AddEvent(AdType.Incentivized, AdEvent.Prepared);
+            }
+
+            public void HandleRewardBasedVideoFailedToLoad(object sender, AdFailedToLoadEventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoFailedToLoad event received with message: " + args.Message);
+#endif
+                SetAdState(AdType.Incentivized, null, AdState.Uncertain);
+                AddEvent(AdType.Incentivized, AdEvent.PrepareFailure);
+            }
+
+            public void HandleRewardBasedVideoOpened(object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoOpened event received");
+#endif
+                AddEvent(AdType.Incentivized, AdEvent.Show);
+            }
+
+            public void HandleRewardBasedVideoStarted(object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoStarted event received");
+#endif
+            }
+
+            public void HandleRewardBasedVideoClosed(object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoClosed event received");
+#endif
+                SetAdState(AdType.Incentivized, null, AdState.Uncertain);
+                AddEvent(AdType.Incentivized, AdEvent.Hide);
+            }
+
+            public void HandleRewardBasedVideoRewarded(object sender, Reward args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoRewarded event received for " + args.Amount.ToString() + " " + args.Type);
+#endif
+                string type = args.Type;
+                double amount = args.Amount;
+                AddEvent(AdType.Incentivized, AdEvent.IncentivizedComplete);
+            }
+
+            public void HandleRewardBasedVideoLeftApplication(object sender, EventArgs args) {
+#if AD_MEDIATION_DEBUG_MODE
+                MonoBehaviour.print("HandleRewardBasedVideoLeftApplication event received");
+#endif
+            }
+
+            #endregion // Reward Video callback handlers
+
+#endif // _MS_ADMOB
+
         }
 
     } // namespace AdMediation
 } // namespace Virterix
-
-#endif // _MS_ADMOB

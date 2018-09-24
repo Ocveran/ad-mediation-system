@@ -1,17 +1,21 @@
 ﻿
 #define _MS_CHARTBOOST
 
-#if _MS_CHARTBOOST
-
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Boomlagoon.JSON;
+
+#if _MS_CHARTBOOST
 using ChartboostSDK;
+#endif
 
 namespace Virterix {
     namespace AdMediation {
 
         public class ChartboostAdapter : AdNetworkAdapter {
+
+#if _MS_CHARTBOOST
 
             void Awake() {
             }
@@ -20,8 +24,11 @@ namespace Virterix {
                 SubscribeEvents();
             }
 
-            void OnDisable() {
+            new void OnDisable() {
                 UnsubscribeEvents();
+            }
+
+            private void OnApplicationPause(bool pause) { 
             }
 
             void SubscribeEvents() {
@@ -56,18 +63,25 @@ namespace Virterix {
                 Chartboost.didCompleteRewardedVideo -= DidCompleteRewardedVideo;
             }
             
-            protected override void InitializeParameters(Dictionary<string, string> parameters) {
-                base.InitializeParameters(parameters);
+            protected override void InitializeParameters(Dictionary<string, string> parameters, JSONArray jsonPlacements) {
+                base.InitializeParameters(parameters, jsonPlacements);
 
                 bool autocache = false;
                 string autocacheStr = "";
                 string appId = "";
                 string appSignature = "";
 
-                parameters.TryGetValue("autocache", out autocacheStr);
+                if (!parameters.TryGetValue("autocache", out autocacheStr)) {
+                    autocacheStr = "";
+                }
                 autocache = autocacheStr == "true";
-                parameters.TryGetValue("appId", out appId);
-                parameters.TryGetValue("appSignature", out appSignature);
+
+                if (!parameters.TryGetValue("appId", out appId)) {
+                    appId = "";
+                }
+                if (!parameters.TryGetValue("appSignature", out appSignature)) {
+                    appSignature = "";
+                }
 
                 if (appId != null && appSignature != null) {
                     Chartboost.CreateWithAppId(appId, appSignature);
@@ -75,7 +89,7 @@ namespace Virterix {
                 Chartboost.setAutoCacheAds(autocache);
             }
 
-            public override void Prepare(AdType adType) {
+            public override void Prepare(AdType adType, PlacementData placementData = null) {
                 switch(adType) {
                     case AdType.Interstitial:
                         Chartboost.cacheInterstitial(CBLocation.Default);
@@ -86,7 +100,7 @@ namespace Virterix {
                 }
             }
 
-            public override bool Show(AdType adType) {
+            public override bool Show(AdType adType, PlacementData placementData = null) {
                 if (IsReady(adType)) {
                     switch (adType) {
                         case AdType.Interstitial:
@@ -101,11 +115,11 @@ namespace Virterix {
                 return false;
             }
 
-            public override void Hide(AdType adType) {
+            public override void Hide(AdType adType, PlacementData placementData = null) {
 
             }
 
-            public override bool IsReady(AdType adType) {
+            public override bool IsReady(AdType adType, PlacementData placementData = null) {
                 bool isReady = false;
                 switch (adType) {
                     case AdType.Interstitial:
@@ -175,9 +189,9 @@ namespace Virterix {
                 AddEvent(AdType.Incentivized, AdEvent.Hide);
             }
 
+#endif // _MS_CHARTBOOST
+
         }
 
     } // namespace AdMediation
 } // namespace Virterix
-
-#endif // _MS_CHARTBOOST

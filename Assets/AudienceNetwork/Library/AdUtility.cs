@@ -13,41 +13,41 @@ namespace AudienceNetwork.Utility
     public class AdUtility
     {
 
-        internal static double width ()
+        internal static double width()
         {
-            return AdUtilityBridge.Instance.width ();
+            return AdUtilityBridge.Instance.width();
         }
 
-        internal static double height ()
+        internal static double height()
         {
-            return AdUtilityBridge.Instance.height ();
+            return AdUtilityBridge.Instance.height();
         }
 
-        internal static double convert (double deviceSize)
+        internal static double convert(double deviceSize)
         {
-            return AdUtilityBridge.Instance.convert (deviceSize);
+            return AdUtilityBridge.Instance.convert(deviceSize);
         }
 
-        internal static void prepare ()
+        internal static void prepare()
         {
-            AdUtilityBridge.Instance.prepare ();
+            AdUtilityBridge.Instance.prepare();
         }
 
     }
 
     internal interface IAdUtilityBridge
     {
-        double deviceWidth ();
+        double deviceWidth();
 
-        double deviceHeight ();
+        double deviceHeight();
 
-        double width ();
+        double width();
 
-        double height ();
+        double height();
 
-        double convert (double deviceSize);
+        double convert(double deviceSize);
 
-        void prepare ();
+        void prepare();
     }
 
     internal class AdUtilityBridge : IAdUtilityBridge
@@ -55,66 +55,67 @@ namespace AudienceNetwork.Utility
 
         public static readonly IAdUtilityBridge Instance;
 
-        internal AdUtilityBridge ()
+        internal AdUtilityBridge()
         {
         }
 
-        static AdUtilityBridge ()
+        static AdUtilityBridge()
         {
-            Instance = AdUtilityBridge.createInstance ();
+            Instance = AdUtilityBridge.createInstance();
         }
 
-        private static IAdUtilityBridge createInstance ()
+        private static IAdUtilityBridge createInstance()
         {
             if (Application.platform != RuntimePlatform.OSXEditor) {
-                #if UNITY_IOS
-                return new AdUtilityBridgeIOS ();
-                #elif UNITY_ANDROID
-                return new AdUtilityBridgeAndroid ();
-                #else
-                return new AdUtilityBridge ();
-                #endif
+#if UNITY_IOS
+                return new AdUtilityBridgeIOS();
+#elif UNITY_ANDROID
+                return new AdUtilityBridgeAndroid();
+#else
+                return new AdUtilityBridge();
+#endif
             } else {
-                return new AdUtilityBridge ();
+                return new AdUtilityBridge();
             }
         }
 
-        public virtual double deviceWidth ()
+        public virtual double deviceWidth()
         {
             return 2208;
         }
 
-        public virtual double deviceHeight ()
+        public virtual double deviceHeight()
         {
             return 1242;
         }
 
-        public virtual double width ()
+        public virtual double width()
         {
             return 1104;
         }
 
-        public virtual double height ()
+        public virtual double height()
         {
             return 621;
         }
 
-        public virtual double convert (double deviceSize)
+        public virtual double convert(double deviceSize)
         {
             return 2;
         }
 
-        public virtual void prepare ()
+        public virtual void prepare()
         {
         }
     }
 
-    #if UNITY_ANDROID
-    internal class AdUtilityBridgeAndroid : AdUtilityBridge {
+#if UNITY_ANDROID
+    internal class AdUtilityBridgeAndroid : AdUtilityBridge
+    {
 
         private T getPropertyOfDisplayMetrics<T> (string property)
         {
-            AndroidJavaClass unityPlayer = new AndroidJavaClass ("com.unity3d.player.UnityPlayer");
+            AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
             AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject> ("currentActivity");
             AndroidJavaObject context = activity.Call<AndroidJavaObject> ("getApplicationContext");
             AndroidJavaObject resources = context.Call<AndroidJavaObject> ("getResources");
@@ -122,39 +123,39 @@ namespace AudienceNetwork.Utility
             return displayMetrics.Get<T> (property);
         }
 
-        private double density ()
+        private double density()
         {
             return this.getPropertyOfDisplayMetrics<float> ("density");
         }
 
-        public override double deviceWidth ()
+        public override double deviceWidth()
         {
             return this.getPropertyOfDisplayMetrics<int> ("widthPixels");
         }
 
-        public override double deviceHeight ()
+        public override double deviceHeight()
         {
             return this.getPropertyOfDisplayMetrics<int> ("heightPixels");
         }
 
-        public override double width ()
+        public override double width()
         {
-            return this.convert (this.deviceWidth ());
+            return this.convert(this.deviceWidth());
         }
 
-        public override double height ()
+        public override double height()
         {
-            return this.convert (this.deviceHeight ());
+            return this.convert(this.deviceHeight());
         }
 
-        public override double convert (double deviceSize)
+        public override double convert(double deviceSize)
         {
-            return (deviceSize / this.density ());
+            return (deviceSize / this.density());
         }
 
-        public override void prepare ()
+        public override void prepare()
         {
-            #if UNITY_ANDROID
+#if UNITY_ANDROID
             try {
                 AndroidJavaClass displayAdControllerClass = new AndroidJavaClass("com.facebook.ads.internal.DisplayAdController");
                 displayAdControllerClass.CallStatic("setMainThreadForced", true);
@@ -164,58 +165,59 @@ namespace AudienceNetwork.Utility
 
             try {
                 AndroidJavaClass looperClass = new AndroidJavaClass("android.os.Looper");
-                looperClass.CallStatic ("prepare");
+                looperClass.CallStatic("prepare");
             } catch (Exception) {
 
             }
-            #endif
+#endif
         }
     }
-    #endif
+#endif
 
-    #if UNITY_IOS
-    internal class AdUtilityBridgeIOS : AdUtilityBridge {
+#if UNITY_IOS
+    internal class AdUtilityBridgeIOS : AdUtilityBridge
+    {
 
-        [DllImport ("__Internal")]
-        private static extern double FBAdUtilityBridgeGetDeviceWidth ();
+        [DllImport("__Internal")]
+        private static extern double FBAdUtilityBridgeGetDeviceWidth();
 
-        [DllImport ("__Internal")]
-        private static extern double FBAdUtilityBridgeGetDeviceHeight ();
+        [DllImport("__Internal")]
+        private static extern double FBAdUtilityBridgeGetDeviceHeight();
 
-        [DllImport ("__Internal")]
-        private static extern double FBAdUtilityBridgeGetWidth ();
+        [DllImport("__Internal")]
+        private static extern double FBAdUtilityBridgeGetWidth();
 
-        [DllImport ("__Internal")]
-        private static extern double FBAdUtilityBridgeGetHeight ();
+        [DllImport("__Internal")]
+        private static extern double FBAdUtilityBridgeGetHeight();
 
-        [DllImport ("__Internal")]
-        private static extern double FBAdUtilityBridgeConvertFromDeviceSize (double deviceSize);
+        [DllImport("__Internal")]
+        private static extern double FBAdUtilityBridgeConvertFromDeviceSize(double deviceSize);
 
-        public override double deviceWidth ()
+        public override double deviceWidth()
         {
-            return FBAdUtilityBridgeGetDeviceWidth ();
+            return FBAdUtilityBridgeGetDeviceWidth();
         }
 
-        public override double deviceHeight ()
+        public override double deviceHeight()
         {
-            return FBAdUtilityBridgeGetDeviceHeight ();
+            return FBAdUtilityBridgeGetDeviceHeight();
         }
 
-        public override double width ()
+        public override double width()
         {
-            return FBAdUtilityBridgeGetWidth ();
+            return FBAdUtilityBridgeGetWidth();
         }
 
-        public override double height ()
+        public override double height()
         {
-            return FBAdUtilityBridgeGetHeight ();
+            return FBAdUtilityBridgeGetHeight();
         }
 
-        public override double convert (double deviceSize)
+        public override double convert(double deviceSize)
         {
-            return FBAdUtilityBridgeConvertFromDeviceSize (deviceSize);
+            return FBAdUtilityBridgeConvertFromDeviceSize(deviceSize);
         }
 
     }
-    #endif
+#endif
 }

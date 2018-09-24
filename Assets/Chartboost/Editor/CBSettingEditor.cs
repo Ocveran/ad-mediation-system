@@ -24,13 +24,14 @@ using UnityEditor;
 namespace ChartboostSDK {
 	[CustomEditor(typeof(CBSettings))]
 	public class CBSettingEditor : Editor {
-		
-		GUIContent iOSAppIdLabel = new GUIContent("App Id [?]:", "Chartboost App Ids can be found at https://dashboard.chartboost.com/app");
-		GUIContent iOSAppSecretLabel = new GUIContent("App Signature [?]:", "Chartboost App Signature can be found at https://dashboard.chartboost.com/app");
-		GUIContent androidAppIdLabel = new GUIContent("App Id [?]:", "Chartboost App Ids can be found at https://dashboard.chartboost.com/app");
-		GUIContent androidAppSecretLabel = new GUIContent("App Signature [?]:", "Chartboost App Signature can be found at https://dashboard.chartboost.com/app");
-		GUIContent amazonAppIdLabel = new GUIContent("App Id [?]:", "Chartboost App Ids can be found at https://dashboard.chartboost.com/app");
-		GUIContent amazonAppSecretLabel = new GUIContent("App Signature [?]:", "Chartboost App Signature can be found at https://dashboard.chartboost.com/app");
+		private const string appIdLink = "https://dashboard.chartboost.com/all/publishing";
+
+		GUIContent iOSAppIdLabel = new GUIContent("App Id [?]:", "Chartboost App Ids can be found at " + appIdLink);
+		GUIContent iOSAppSecretLabel = new GUIContent("App Signature [?]:", "Chartboost App Signature can be found at " + appIdLink);
+		GUIContent androidAppIdLabel = new GUIContent("App Id [?]:", "Chartboost App Ids can be found at " + appIdLink);
+		GUIContent androidAppSecretLabel = new GUIContent("App Signature [?]:", "Chartboost App Signature can be found at " + appIdLink);
+		GUIContent amazonAppIdLabel = new GUIContent("App Id [?]:", "Chartboost App Ids can be found at " + appIdLink);
+		GUIContent amazonAppSecretLabel = new GUIContent("App Signature [?]:", "Chartboost App Signature can be found at " + appIdLink);
 		GUIContent selectorLabel = new GUIContent("Android Platform [?]:", "Select if building for Google Play or Amazon Store");
 		GUIContent iOSLabel = new GUIContent("iOS");
 		GUIContent androidLabel = new GUIContent("Google Play");

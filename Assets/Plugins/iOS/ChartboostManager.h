@@ -8,7 +8,7 @@
 #import <Foundation/Foundation.h>
 
 #if !defined(CB_UNITY_SDK_VERSION_STRING)
-  #define CB_UNITY_SDK_VERSION_STRING @"6.6.1"
+  #define CB_UNITY_SDK_VERSION_STRING @"7.2.0"
 #endif
 
 
@@ -20,10 +20,8 @@
 // Properties used by delegates
 @property (nonatomic) BOOL hasCheckedWithUnityToDisplayInterstitial;
 @property (nonatomic) BOOL hasCheckedWithUnityToDisplayRewardedVideo;
-@property (nonatomic) BOOL hasCheckedWithUnityToDisplayMoreApps;
 @property (nonatomic) BOOL unityResponseShouldDisplayInterstitial;
 @property (nonatomic) BOOL unityResponseShouldDisplayRewardedVideo;
-@property (nonatomic) BOOL unityResponseShouldDisplayMoreApps;
 
 @property (nonatomic, retain) NSString *gameObjectName;
 

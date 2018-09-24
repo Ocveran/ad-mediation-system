@@ -89,15 +89,21 @@ namespace AdColony {
             // save the string for debug information
             AdColonyJson.instance.lastDecode = json;
 
+            object value = null;
+            try {
             char[] charArray = json.ToCharArray();
             int index = 0;
             bool success = true;
-            object value = AdColonyJson.instance.ParseValue(charArray, ref index, ref success);
+                value = AdColonyJson.instance.ParseValue(charArray, ref index, ref success);
             if (success) {
                 AdColonyJson.instance.lastErrorIndex = -1;
             } else {
                 AdColonyJson.instance.lastErrorIndex = index;
             }
+            } catch (System.Exception e) {
+                UnityEngine.Debug.LogError(e.ToString());
+            }
+            
             return value;
         }
 
@@ -112,8 +118,14 @@ namespace AdColony {
                 return null;
             }
 
+            bool success = false;
             StringBuilder builder = new StringBuilder(BUILDER_CAPACITY);
-            bool success = AdColonyJson.instance.SerializeValue(json, builder);
+            try {
+                success = AdColonyJson.instance.SerializeValue(json, builder);
+            } catch (System.Exception e) {
+                UnityEngine.Debug.LogError(e.ToString());
+            }
+
             return (success ? builder.ToString() : null);
         }
 

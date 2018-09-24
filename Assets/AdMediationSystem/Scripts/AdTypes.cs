@@ -6,18 +6,19 @@ namespace Virterix {
     namespace AdMediation {
 
         public enum AdType {
-            None = 0,
+            Unknown = 0,
             Banner = 1,
             Interstitial = 2,
             Video = 3,
-            Incentivized = 4
+            Incentivized = 4,
+            Native = 5
         }
 
         public static class AdTypeConvert {
 
             public static AdType StringToAdType(string adTypeName) {
 
-                AdType adType = AdType.None;
+                AdType adType = AdType.Unknown;
                 switch (adTypeName) {
                     case "banner":
                         adType = AdType.Banner;
@@ -30,6 +31,9 @@ namespace Virterix {
                         break;
                     case "incentivized":
                         adType = AdType.Incentivized;
+                        break;
+                    case "native":
+                        adType = AdType.Native;
                         break;
                 }
 
@@ -51,6 +55,9 @@ namespace Virterix {
                         break;
                     case AdType.Incentivized:
                         adTypeName = "incentivized";
+                        break;
+                    case AdType.Native:
+                        adTypeName = "native";
                         break;
                 }
 

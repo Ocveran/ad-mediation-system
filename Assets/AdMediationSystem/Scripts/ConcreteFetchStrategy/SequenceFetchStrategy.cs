@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System;
 
 namespace Virterix {
     namespace AdMediation {
@@ -11,26 +11,39 @@ namespace Virterix {
             public class SequenceStrategyParams : IFetchStrategyParams {
                 public int m_index;
                 public int m_impressions;
-                public int m_skipFetchIndex;           
+                public int m_skipFetchIndex;
+                public AdNetworkAdapter m_replacebleNetwork;
             }
             
             int m_currFetchCount;
             int m_currUnitIndex;
             AdUnit m_currUnit;
-            
+            int m_skipCount;
+            int m_maxSkipCount;
+
             public bool IsAllowAutoFillUnits() {
                 return false;
             }
 
             public AdUnit Fetch(AdMediator mediator, AdUnit[] units) {
+                m_skipCount = 0;
+                m_maxSkipCount = 6;
                 AdUnit unit = MoveToNextUnit(mediator, units);
                 return unit;
             }
 
+            /// <summary>
+            /// Reset to start state
+            /// </summary>
+            /// <param name="mediator">Mediator for find index in fetch units array</param>
+            /// <param name="unit">Set current unit</param>
             public void Reset(AdMediator mediator, AdUnit unit) {
                 m_currUnit = unit;
                 if (mediator != null) {
                     m_currUnitIndex = mediator.FindIndexInFetchUnits(m_currUnit);
+                }
+                else {
+                    m_currUnitIndex = 0;
                 }
                 m_currFetchCount = 1;
             }
@@ -58,7 +71,6 @@ namespace Virterix {
             AdUnit MoveToNextUnit(AdMediator mediator, AdUnit[] units) {
 
                 if (units.Length == 0) {
-                    mediator.FillFetchUnits(true);
                     return null;
                 }
 
@@ -68,8 +80,9 @@ namespace Virterix {
                 if (m_currUnit == null) {
                     nextUnitIndex = 0;
                 } else {
+                    // If current unit not contained in fetch array then next unit index doesn't increment.
                     if (m_currUnit.IsContainedInFetch) {
-                        if(IsMoveNextUnit(m_currUnit)) {
+                        if (IsMoveNextUnit(m_currUnit)) {
                             nextUnitIndex++;
                             isNeedReset = true;
                         }
@@ -82,6 +95,10 @@ namespace Virterix {
                     nextUnitIndex = 0;
                     mediator.FillFetchUnits(true);
                     units = mediator.FetchUnits.ToArray();
+                    if (units.Length == 0) {
+                        return null;
+                    }
+
                     if (!isNeedReset) {
                         nextUnitIndex = FindIndex(m_currUnit, units);
                         nextUnitIndex = nextUnitIndex == -1 ? 0 : nextUnitIndex;
@@ -94,7 +111,7 @@ namespace Virterix {
                 m_currFetchCount++;
 
                 if (isNeedReset) {
-                    Reset(null, m_currUnit);
+                    Reset(mediator, m_currUnit);
                 }
 
                 string networkName = "";
@@ -102,10 +119,28 @@ namespace Virterix {
                     networkName = m_currUnit.AdNetwork.m_networkName;
                 }
 
-                if (IsSkipUnit(m_currUnit)) {
+                bool isSkipUnit = IsSkipUnit(m_currUnit);
+
+                if (!isSkipUnit && m_currUnit != null) {
+                    SequenceStrategyParams sequenceStrategyParams = m_currUnit.FetchStrategyParams as SequenceStrategyParams;
+                    if (sequenceStrategyParams.m_replacebleNetwork != null) {
+                        AdNetworkAdapter.PlacementData placementData = m_currUnit != null ? m_currUnit.PlacementData : null;
+
+                        if (sequenceStrategyParams.m_replacebleNetwork.GetEnabledState(m_currUnit.AdapterAdType, placementData)) {
+                            isSkipUnit = sequenceStrategyParams.m_replacebleNetwork.GetLastAdPreparedStatus(m_currUnit.AdapterAdType, 
+                                m_currUnit.PlacementData);
+                        }
+                        else {
+                            isSkipUnit = false;
+                        }
+                    }
+                }
+
+                if (isSkipUnit && m_skipCount < m_maxSkipCount) {
+                    m_skipCount++;
                     m_currUnit = MoveToNextUnit(mediator, units);
                 }
-                  
+
                 return m_currUnit;
             }
 
@@ -138,6 +173,11 @@ namespace Virterix {
                 if (networkParams.ContainsKey("skipFetchIndex")) {
                     sequenceStrategyParams.m_skipFetchIndex = System.Convert.ToInt32(networkParams["skipFetchIndex"]);
                 }
+
+                if (networkParams.ContainsKey("replaceableNetwork")) {
+                    sequenceStrategyParams.m_replacebleNetwork = AdMediationSystem.Instance.GetNetwork(networkParams["replaceableNetwork"]);
+                }
+ 
             }
         }
 

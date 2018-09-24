@@ -12,11 +12,18 @@
 #import "ALAdDelegateWrapper.h"
 #import "ALManagedLoadDelegate.h"
 
-@interface ALInterstitialCache : NSObject  <ALAdLoadDelegate, ALUnityTypedLoadFailureDelegate>
+@interface ALInterstitialCache : NSObject
 
-+(instancetype) shared;
 
-@property (strong, nonatomic) ALAd* lastAd;
-@property (strong, nonatomic) ALAdDelegateWrapper* wrapperToNotify;
+-(ALAd *)adForZoneIdentifier: (NSString *)zoneIdentifier;
+
+-(void)removeAd: (ALAd *)ad;
+
+-(BOOL)hasAdForZoneIdentifier: (NSString *)zoneIdentifier;
+
+-(void)setAd: (ALAd *)ad forZoneIdentifier: (NSString *)zoneIdentifier;
+
++ (instancetype)shared;
 
 @end
+

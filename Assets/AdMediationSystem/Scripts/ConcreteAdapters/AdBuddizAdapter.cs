@@ -1,7 +1,5 @@
 ﻿
-#define _MS_ABUDDIZ
-
-#if _MS_ABUDDIZ
+//#define _MS_ABUDDIZ
 
 using UnityEngine;
 using System.Collections;
@@ -14,6 +12,8 @@ namespace Virterix {
             public bool m_isTestMode;
             public string m_defaultAndroidPublisherKey;
             public string m_defaultIOSPublisherKey;
+
+#if _MS_ABUDDIZ
 
             void Awake() {
                 // Listen to AdBuddiz events
@@ -133,9 +133,10 @@ namespace Virterix {
                 AddEvent(AdType.Incentivized, AdEvent.IncentivizedComplete);
                 AddEvent(AdType.Incentivized, AdEvent.Hide);
             }
+
+#endif // _MS_ABUDDIZ
+
         }
 
     } // namespace AdMediation
 } // namespace Virterix
-
-#endif // _MS_ABUDDIZ

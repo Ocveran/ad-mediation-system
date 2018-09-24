@@ -54,6 +54,39 @@ namespace Virterix {
                 get { return PassedTimeSpanSinceLastSave.TotalDays; }
             }
 
+            public bool IsPeriodOver {
+                get {
+                    bool isOver = false;
+
+                    if (m_wasSaved) {
+                        double elapsedPeriod = 0;
+                        TimeSpan elapsedTimeSpan = PassedTimeSpanSinceLastSave;
+
+                        switch (m_periodType) {
+                            case PeriodType.Seconds:
+                                elapsedPeriod = elapsedTimeSpan.TotalSeconds;
+                                break;
+                            case PeriodType.Minutes:
+                                elapsedPeriod = elapsedTimeSpan.TotalMinutes;
+                                break;
+                            case PeriodType.Hours:
+                                elapsedPeriod = elapsedTimeSpan.TotalHours;
+                                break;
+                            case PeriodType.Days:
+                                elapsedPeriod = elapsedTimeSpan.TotalDays;
+                                break;
+                        }
+
+                        if (elapsedPeriod > m_period) {
+                            isOver = true;
+                        }
+                    }
+
+                    return isOver;
+                }
+            }
+
+
             public SavedDate(string key, float period, PeriodType periodType = PeriodType.Hours) {
                 m_key = key;
                 m_period = period;
@@ -80,39 +113,8 @@ namespace Virterix {
                 if (isUpdateCurrSavedData) {
                     m_savedDate = currDateTime;
                 }
-
                 string currDateTimeStr = currDateTime.ToString();
                 PlayerPrefs.SetString(m_key, currDateTimeStr);
-            }
-
-            public bool IsOverPeriod() {
-                bool isOver = false;
-
-                if (m_wasSaved) {
-                    double elapsedPeriod = 0;
-                    TimeSpan elapsedTimeSpan = PassedTimeSpanSinceLastSave;
-
-                    switch (m_periodType) {
-                        case PeriodType.Seconds:
-                            elapsedPeriod = elapsedTimeSpan.TotalSeconds;
-                            break;
-                        case PeriodType.Minutes:
-                            elapsedPeriod = elapsedTimeSpan.TotalMinutes;
-                            break;
-                        case PeriodType.Hours:
-                            elapsedPeriod = elapsedTimeSpan.TotalHours;
-                            break;
-                        case PeriodType.Days:
-                            elapsedPeriod = elapsedTimeSpan.TotalDays;
-                            break;
-                    }
-
-                    if (elapsedPeriod > m_period) {
-                        isOver = true;
-                    }
-                }
-
-                return isOver;
             }
 
         }

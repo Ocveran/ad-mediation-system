@@ -10,10 +10,19 @@
 #import "ALAd.h"
 #import "ALAdLoadDelegate.h"
 
-static ALInterstitialCache* instance;
+
+@interface ALInterstitialCache()
+
+@property (strong, nonatomic) NSMutableDictionary<NSString *, ALAd *> *cache;
+
+@end
 
 @implementation ALInterstitialCache
-@synthesize lastAd, wrapperToNotify;
+
+
+static ALInterstitialCache *instance;
+
+
 
 +(instancetype) shared
 {
@@ -24,21 +33,55 @@ static ALInterstitialCache* instance;
     return instance;
 }
 
--(void) adService:(ALAdService *)adService didLoadAd:(ALAd *)ad
+- (instancetype)init
 {
-    lastAd = ad;
-    [lastAd retain];
-    [wrapperToNotify adService: adService didLoadAd: ad];
+    self = [super init];
+    if (self) {
+        self.cache = [NSMutableDictionary dictionary];
+    }
+    return self;
 }
 
--(void) adService:(ALAdService *)adService didFailToLoadAdWithError:(int)code
+
+-(ALAd *)adForZoneIdentifier: (NSString *)zoneIdentifier
 {
-    [wrapperToNotify adService: adService didFailToLoadAdWithError: code];
+    return self.cache[zoneIdentifier];
 }
 
--(void) adService:(ALAdService *)adService didFailToLoadAdOfSize:(ALAdSize *)size type:(ALAdType *)type withError:(NSInteger)error
+-(void)removeAd: (ALAd *)ad
 {
-    [wrapperToNotify adService: adService didFailToLoadAdOfSize: size type: type withError: error];
+    __block NSString *keyToRemove;
+    [self.cache enumerateKeysAndObjectsUsingBlock:^(NSString *key, ALAd *obj, BOOL *stop) {
+        if ( [obj isEqual: ad] )
+        {
+            keyToRemove = key;
+            *stop = YES;
+        }
+    }];
+    
+    if ( keyToRemove )
+    {
+        [self.cache removeObjectForKey: keyToRemove];
+    }
+}
+
+-(BOOL)hasAdForZoneIdentifier: (NSString *)zoneIdentifier
+{
+    if ( zoneIdentifier )
+    {
+        return self.cache[zoneIdentifier] != nil;
+    }
+    
+    return NO;
+}
+
+-(void)setAd: (ALAd *)ad forZoneIdentifier: (NSString *)zoneIdentifier
+{
+    if ( ad && zoneIdentifier )
+    {
+        self.cache[zoneIdentifier] = ad;
+    }
 }
 
 @end
+

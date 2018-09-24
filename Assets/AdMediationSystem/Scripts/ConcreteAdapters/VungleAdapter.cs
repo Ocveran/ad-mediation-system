@@ -1,7 +1,5 @@
 ﻿
-#define _MS_VUNGLE
-
-#if _MS_VUNGLE
+//#define _MS_VUNGLE
 
 using UnityEngine;
 using System.Collections;
@@ -12,7 +10,11 @@ namespace Virterix {
 
         public class VungleAdapter : AdNetworkAdapter {
 
+#if _MS_VUNGLE
+
             string m_appId;
+            string m_interstitialPlacementId;
+            string m_incentivizedPlacementId;
             AdType m_currAdType;
 
             void Awake() {
@@ -34,25 +36,16 @@ namespace Virterix {
                 base.InitializeParameters(parameters);
 
                 m_appId = parameters["appId"];
+                m_interstitialPlacementId = parameters["interstitialId"];
+                m_incentivizedPlacementId = parameters["m_incentivizedId"];
 
-                string androidAppId = "";
-                string iosAppId = "";
-                string winAppId = "";
+                Dictionary<string, bool> placements = new Dictionary<string, bool>();
+                placements.Add(m_interstitialPlacementId, false);
+                placements.Add(m_incentivizedPlacementId, false);
 
-                switch(Application.platform) {
-                    case RuntimePlatform.Android:
-                        androidAppId = m_appId;
-                        break;
-                    case RuntimePlatform.IPhonePlayer:
-                        iosAppId = m_appId;
-                        break;
-                    case RuntimePlatform.WSAPlayerX64:
-                    case RuntimePlatform.WSAPlayerX86:
-                    case RuntimePlatform.WSAPlayerARM:
-                        winAppId = m_appId;
-                        break;
-                }
-                Vungle.init(androidAppId, iosAppId, winAppId);
+                string[] array = new string[placements.Keys.Count];
+                placements.Keys.CopyTo(array, 0);
+                Vungle.init(m_appId, array);
             }
 
             public override void Prepare(AdType adType) {
@@ -63,9 +56,11 @@ namespace Virterix {
                 if(IsReady(adType) && m_currAdType == AdType.None) {
                     m_currAdType = adType;
                     bool incentivized = m_currAdType == AdType.Incentivized;
-                    
+                    string placementId = incentivized ? m_incentivizedPlacementId : m_interstitialPlacementId;
+
                     Dictionary<string, object> options = new Dictionary<string, object>();
                     options.Add("incentivized", incentivized);
+  
 #if UNITY_ANDROID
                     //options.Add("orientation", VungleAdOrientation.AutoRotate);
 #elif UNITY_IPHONE
@@ -73,7 +68,7 @@ namespace Virterix {
 #endif
                     options.Add("userTag", "");
                     
-                    Vungle.playAdWithOptions(options);
+                    Vungle.playAd(options, placementId);
                     return true;
                 }
                 return false;
@@ -85,26 +80,27 @@ namespace Virterix {
             public override bool IsReady(AdType adType) {
                 bool isReady = false;
                 if (IsSupported(adType)) {
-                    isReady = Vungle.isAdvertAvailable();
+                    string placementId = (adType == AdType.Incentivized) ? m_incentivizedPlacementId : m_interstitialPlacementId;
+                    isReady = Vungle.isAdvertAvailable(placementId);
                 }
                 return isReady;
             }
 
  
-            void OnAdStartedEvent() {
+            void OnAdStartedEvent(string msg) {
                 if (m_currAdType == AdType.None) {
                     return;
                 }
                 AddEvent(m_currAdType, AdEvent.Show);
             }
 
-            void OnAdFinishedEvent(AdFinishedEventArgs args) {
+            void OnAdFinishedEvent(string msg, AdFinishedEventArgs args) {
                 if(m_currAdType == AdType.None) {
                     return;
                 }
                 
                 if (m_currAdType == AdType.Incentivized) {
-                    if (Mathf.Approximately((float)args.TimeWatched, (float)args.TotalDuration)) {
+                    if (args.IsCompletedView) {
                         AddEvent(m_currAdType, AdEvent.IncentivizedComplete);
                     }
                     else {
@@ -119,9 +115,10 @@ namespace Virterix {
             void OnLogEvent(string message) {
                 Debug.Log("VungleAdapter.OnLogEvent ~ " + message);
             }
+            
+#endif // _MS_VUNGLE
+
         }
 
     } // namespace AdMediation
 } // namespace Virterix
-
-#endif // _MS_VUNGLE

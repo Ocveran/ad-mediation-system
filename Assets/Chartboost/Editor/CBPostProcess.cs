@@ -22,13 +22,13 @@ namespace ChartboostSDK {
 		[PostProcessBuild(5000)]
 		public static void OnPostProcessBuild(BuildTarget target, string path)
 		{
-			#if UNITY_5
+			#if UNITY_5 || UNITY_2017_1_OR_NEWER
 			if(target == BuildTarget.iOS) {
 				PostProcessBuild_iOS(path);
 			}
 			#else
 			// UNITY_4_0 || UNITY_4_1 || UNITY_4_2 || UNITY_4_3 || UNITY_4_4 || UNITY_4_5 || UNITY_4_6
-			if(target == BuildTarget.iPhone && !EditorUserBuildSettings.appendProject) {
+			if(target == BuildTarget.iOS && !EditorUserBuildSettings.appendProject) {
 				PostProcessBuild_iOS(path);
 			}
 			#endif
@@ -63,6 +63,7 @@ namespace ChartboostSDK {
 			{
 				project.ApplyMod(file);
 			}
+            project.AddOtherLDFlags("-ObjC");
 			project.Save();
 		}
 		

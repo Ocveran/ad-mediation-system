@@ -7,6 +7,8 @@
 #define ADC_APPOPTIONS_DISABLE_LOGGING_KEY @"logging"
 #define ADC_APPOPTIONS_USER_ID_KEY @"user_id"
 #define ADC_APPOPTIONS_ORIENTATION @"orientation"
+#define ADC_APPOPTIONS_GDPR_REQUIRED @"gdpr_required"
+#define ADC_APPOPTIONS_GDPR_CONSENT_STRING @"consent_string"
 
 // JSON keys for AdColonyAdOptions
 #define ADC_ADOPTIONS_PRE_POPUP_KEY @"pre_popup"

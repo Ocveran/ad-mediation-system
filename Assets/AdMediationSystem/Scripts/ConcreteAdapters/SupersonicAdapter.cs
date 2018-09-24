@@ -1,7 +1,5 @@
 ﻿
-#define _MS_IRONSOURCE
-
-#if _MS_IRONSOURCE
+//#define _MS_IRONSOURCE
 
 using UnityEngine;
 using System.Collections;
@@ -14,6 +12,8 @@ namespace Virterix {
 			public string m_defaultAndroidAppKey = "";
 			public string m_defaultIOSAppKey = "";
             public bool m_isValidateIntegrationCall = false;
+
+#if _MS_IRONSOURCE
 
             void SubscribeEvents() {
 				SupersonicEvents.onInterstitialInitSuccessEvent += OnInterstitialInitSuccessEvent;
@@ -239,9 +239,10 @@ namespace Virterix {
 			void OnVideoEndEvent() {
 				
 			}
-		}
+
+#endif // _MS_IRONSOURCE
+
+        }
 
     } // namespace AdMediation
 } // namespace Virterix
-
-#endif // _MS_IRONSOURCE

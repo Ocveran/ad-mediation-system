@@ -6,16 +6,17 @@
 //
 //
 
-/* Are you using Swift in your project?
-For convenience, this file provides #imports for
-all SDK classes. Just add an #import of this file
-into your Bridging-Heeader.h file for Swift. */
+/**
+ * Are you using Swift in your project?
+ * For convenience, this file provides #imports for
+ * all SDK classes. Just add an #import of this file
+ * into your Bridging-Header.h file for Swift.
+ */
 
 // Core SDK
 #import "ALErrorCodes.h"
 #import "ALSdk.h"
 #import "ALSdkSettings.h"
-#import "ALTargetingData.h"
 #import "ALPostbackService.h"
 #import "ALPostbackDelegate.h"
 
@@ -30,8 +31,11 @@ into your Bridging-Heeader.h file for Swift. */
 #import "ALAdUpdateDelegate.h"
 #import "ALAdVideoPlaybackDelegate.h"
 #import "ALAdView.h"
+#import "ALAdViewEventDelegate.h"
 #import "ALIncentivizedInterstitialAd.h"
 #import "ALInterstitialAd.h"
+#import "ALMediationProvider.h"
+#import "ALPrivacySettings.h"
 
 // Native Ads
 #import "ALNativeAd.h"

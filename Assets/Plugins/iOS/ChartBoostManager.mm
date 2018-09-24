@@ -20,7 +20,6 @@ void UnitySendMessage(const char *className, const char *methodName, const char 
 
 @synthesize hasCheckedWithUnityToDisplayInterstitial, unityResponseShouldDisplayInterstitial;
 @synthesize hasCheckedWithUnityToDisplayRewardedVideo, unityResponseShouldDisplayRewardedVideo;
-@synthesize hasCheckedWithUnityToDisplayMoreApps, unityResponseShouldDisplayMoreApps;
 @synthesize gameObjectName;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,10 +44,8 @@ void UnitySendMessage(const char *className, const char *methodName, const char 
 
         self.hasCheckedWithUnityToDisplayInterstitial = NO;
         self.hasCheckedWithUnityToDisplayRewardedVideo = NO;
-        self.hasCheckedWithUnityToDisplayMoreApps = NO;
         self.unityResponseShouldDisplayInterstitial = YES;
         self.unityResponseShouldDisplayRewardedVideo = YES;
-        self.unityResponseShouldDisplayMoreApps = YES;
     }
 
     return self;
@@ -138,60 +135,6 @@ void UnitySendMessage(const char *className, const char *methodName, const char 
 	NSData *jsonData = [NSJSONSerialization dataWithJSONObject:data options:0 error:NULL];
 	NSString *json = [[[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] autorelease];
     UnitySendMessage([gameObjectName UTF8String], "didFailToRecordClickEvent", json.UTF8String);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma mark CBMoreAppsDelegate
-
-- (void)didFailToLoadMoreApps:(CBLocation)location withError:(CBLoadError)error
-{
-	NSDictionary *data = [NSDictionary dictionaryWithObjectsAndKeys:
-                          location ? location : [NSNull null], @"location",
-						  [NSNumber numberWithInt: error], @"errorCode",
-						  nil];
-	NSData *jsonData = [NSJSONSerialization dataWithJSONObject:data options:0 error:NULL];
-	NSString *json = [[[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] autorelease];
-	UnitySendMessage([gameObjectName UTF8String], "didFailToLoadMoreAppsEvent", json.UTF8String);
-}
-
-- (void)didCacheMoreApps:(CBLocation)location
-{
-	UnitySendMessage([gameObjectName UTF8String], "didCacheMoreAppsEvent", location.UTF8String);
-}
-
-- (BOOL)shouldDisplayMoreApps:(CBLocation)location
-{
-	if (self.hasCheckedWithUnityToDisplayMoreApps)
-    {
-        self.hasCheckedWithUnityToDisplayMoreApps = false;
-        return self.unityResponseShouldDisplayMoreApps;
-    }
-    else
-    {
-        self.hasCheckedWithUnityToDisplayMoreApps = true;
-        UnitySendMessage([gameObjectName UTF8String], "shouldDisplayMoreAppsEvent", location.UTF8String);
-    }
-    return NO;
-}
-
-- (void)didDisplayMoreApps:(CBLocation) location
-{
-	UnitySendMessage([gameObjectName UTF8String], "didDisplayMoreAppsEvent", location.UTF8String);
-}
-
-- (void)didDismissMoreApps:(CBLocation)location
-{
-    UnitySendMessage([gameObjectName UTF8String], "didDismissMoreAppsEvent", location.UTF8String);
-}
-
-- (void)didCloseMoreApps:(CBLocation)location
-{
-    UnitySendMessage([gameObjectName UTF8String], "didCloseMoreAppsEvent", location.UTF8String);
-}
-
-- (void)didClickMoreApps:(CBLocation)location
-{
-    UnitySendMessage([gameObjectName UTF8String], "didClickMoreAppsEvent", location.UTF8String);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

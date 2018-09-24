@@ -1,8 +1,6 @@
 ﻿
 //#define _MS_POLLFISH
 
-#if _MS_POLLFISH
-
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,9 +11,12 @@ namespace Virterix {
         public class PollfishAdapter : AdNetworkAdapter {
 
             public string m_apiKey;
-            public Position m_pollfishPosition = Position.BOTTOM_RIGHT;
             public bool m_debugMode = true;
             public int m_padding = 10;
+
+#if _MS_POLLFISH
+
+            public Position m_pollfishPosition = Position.BOTTOM_RIGHT;
 
             bool m_customMode;
 
@@ -177,9 +178,10 @@ namespace Virterix {
                 m_unavailableDate.Save();
             }
 
+#endif // _MS_POLLFISH
+
         }
 
     } // namespace AdMediation
 } // namespace Virterix
 
-#endif // _MS_POLLFISH

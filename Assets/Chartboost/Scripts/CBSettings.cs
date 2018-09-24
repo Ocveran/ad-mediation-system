@@ -31,8 +31,8 @@ namespace ChartboostSDK {
 	    const string amazonExampleAppID = "542ca35d1873da32dbc90488";
 	    const string amazonExampleAppSignature = "90654a340386c9fb8de33315e4210d7c09989c43";
 	    
-	    const string credentialsWarningDefaultFormat = "CHARTBOOST: You are using the Chartboost {0} example {1}! Go to the Chartboost dashboard and replace these with an App ID & App Signature from your account! If you need help, email us: support@chartboost.com"; 
-	    const string credentialsWarningEmptyFormat = "CHARTBOOST: You are using an empty string for the {0} {1}! Go to the Chartboost dashboard and replace these with an App ID & App Signature from your account! If you need help, email us: support@chartboost.com"; 
+	    const string credentialsWarningDefaultFormat = "CHARTBOOST: You are using the Chartboost {0} example {1}! Go to the Chartboost dashboard and replace these with an App ID & App Signature from your account! If you need help, check out answers.chartboost.com"; 
+	    const string credentialsWarningEmptyFormat = "CHARTBOOST: You are using an empty string for the {0} {1}! Go to the Chartboost dashboard and replace these with an App ID & App Signature from your account! If you need help, check out answers.chartboost.com"; 
 	    const string credentialsWarningIOS = "IOS"; 
 	    const string credentialsWarningAndroid = "Android"; 
 	    const string credentialsWarningAmazon = "Amazon"; 
@@ -82,7 +82,7 @@ namespace ChartboostSDK {
 	    [MenuItem("Chartboost/SDK Documentation")]
 	    public static void OpenDocumentation()
 	    {
-	        string url = "https://help.chartboost.com/documentation/unity";
+	        string url = "https://answers.chartboost.com/en-us/child_article/unity";
 	        Application.OpenURL(url);
 	    }
 	#endif

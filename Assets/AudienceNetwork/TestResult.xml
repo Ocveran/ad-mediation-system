@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--This file represents the results of running a test suite-->
+<test-results name="/Users/yogevs/unity-facebook/ads/../buck-out/gen/ads/AudienceNetworkUnitTest/AudienceNetworkUnitTest.dll" total="3" failures="0" not-run="0" date="2018-05-10" time="11:05:53">
+  <environment nunit-version="2.4.8.0" clr-version="2.0.50727.1433" os-version="Unix 17.5.0.0" platform="Unix" cwd="/Users/yogevs/unity-facebook/ads/Assets/AudienceNetwork" machine-name="yogevs-mbp" user="yogevs" user-domain="yogevs-mbp" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite name="/Users/yogevs/unity-facebook/ads/../buck-out/gen/ads/AudienceNetworkUnitTest/AudienceNetworkUnitTest.dll" success="True" time="0.698" asserts="0">
+    <results>
+      <test-suite name="helloworld_project" success="True" time="0.119" asserts="0">
+        <results>
+          <test-suite name="EmptyClassTest" success="True" time="0.047" asserts="0">
+            <results>
+              <test-case name="helloworld_project.EmptyClassTest.testAudienceNetworkSDKVersion" executed="True" success="True" time="0.011" asserts="0" />
+              <test-case name="helloworld_project.EmptyClassTest.testHelloWorld" executed="True" success="True" time="0.010" asserts="1" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite name="unityTest_project" success="True" time="0.563" asserts="0">
+        <results>
+          <test-suite name="SampleUnityClassTest" success="True" time="0.554" asserts="0">
+            <results>
+              <test-case name="unityTest_project.SampleUnityClassTest.testMonoBehaviourSubclass" executed="True" success="True" time="0.553" asserts="0" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

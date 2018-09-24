@@ -1,12 +1,13 @@
 ﻿
 //#define _MS_HEYZAP
 
-#if _MS_HEYZAP
-
 using UnityEngine;
 using System.Collections;
-using Heyzap;
 using System.Collections.Generic;
+
+#if _MS_HEYZAP
+using Heyzap;
+#endif
 
 namespace Virterix {
     namespace AdMediation {
@@ -15,6 +16,8 @@ namespace Virterix {
 
             public string m_defaultAndroidPublisherId;
             public string m_defaultIOSPublisherId;
+
+#if _MS_HEYZAP
 
             string m_publisherID;
 
@@ -168,9 +171,11 @@ namespace Virterix {
                     AddEvent(AdType.Incentivized, AdEvent.IncentivizedIncomplete);
                 }
             }
+
+#endif  // _MS_HEYZAP
+
         }
 
     } // namespace AdMediation
 } // namespace Virterix
 
-#endif  // _MS_HEYZAP

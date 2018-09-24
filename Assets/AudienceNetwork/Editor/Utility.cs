@@ -17,6 +17,8 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+using UnityEditor;
+using System.Reflection;
 
 namespace AudienceNetwork.Editor
 {
@@ -26,15 +28,18 @@ namespace AudienceNetwork.Editor
 
     public static class Utility
     {
+        private static string BundleIdentifier = "bundleIdentifier";
+        private static string ApplicationIdentifier = "applicationIdentifier";
+
         public static T Pop<T> (this IList<T> list)
         {
-            if (!list.Any ()) {
-                throw new InvalidOperationException ("Attempting to pop item on empty list.");
+            if (!list.Any()) {
+                throw new InvalidOperationException("Attempting to pop item on empty list.");
             }
 
             int index = list.Count - 1;
             T value = list [index];
-            list.RemoveAt (index);
+            list.RemoveAt(index);
             return value;
         }
 
@@ -44,13 +49,44 @@ namespace AudienceNetwork.Editor
             out T value)
         {
             object resultObj;
-            if (dictionary.TryGetValue (key, out resultObj) && resultObj is T) {
+            if (dictionary.TryGetValue(key, out resultObj) && resultObj is T) {
                 value = (T)resultObj;
                 return true;
             }
 
             value = default(T);
             return false;
+        }
+
+        public static bool HasProperty(Type type, string propertyName)
+        {
+            return (type.GetProperty(propertyName) != null);
+        }
+
+        public static T GetPropertyValue<T>(Type type, string propertyName)
+        {
+            T returnValue = default(T);
+            PropertyInfo propertyInfo = type.GetProperty(propertyName);
+            if (propertyInfo != null && propertyInfo.CanRead) {
+                T extractedValue = (T)propertyInfo.GetValue(type, null);
+                if (typeof(T) == extractedValue.GetType()) {
+                    returnValue = extractedValue;
+                }
+            }
+
+            return returnValue;
+        }
+
+        public static string GetApplicationIdentifier()
+        {
+            string applicationId = null;
+            Type playerSettingsType = typeof(PlayerSettings);
+            if (HasProperty(playerSettingsType, BundleIdentifier)) {
+                applicationId = GetPropertyValue<string>(playerSettingsType, BundleIdentifier);
+            } else if (HasProperty(playerSettingsType, ApplicationIdentifier)) {
+                applicationId = GetPropertyValue<string>(playerSettingsType, ApplicationIdentifier);
+            }
+            return applicationId;
         }
     }
 }

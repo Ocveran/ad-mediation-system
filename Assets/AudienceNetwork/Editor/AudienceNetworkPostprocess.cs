@@ -36,25 +36,26 @@ namespace AudienceNetwork.Editor
         public static string RequiredFrameworks = "AdSupport;StoreKit;";
 
         [PostProcessBuild(100)]
-        public static void OnPostProcessBuild (BuildTarget target, string path)
+        public static void OnPostProcessBuild(BuildTarget target, string path)
         {
             if (target == BuildTarget.Android) {
-                // The default Bundle Identifier for Unity does magical things that causes bad stuff to happen
-                if (PlayerSettings.bundleIdentifier == "com.Company.ProductName") {
-                    Debug.LogError ("The default Unity Bundle Identifier (com.Company.ProductName) will not work correctly.");
+                var defaultIdentifier = "com.Company.ProductName";
+
+                // Find application identifier (backwards compatible prior to Unity 5.6)
+                if (Utility.GetApplicationIdentifier() == defaultIdentifier) {
+                    Debug.LogError("The default Unity Bundle Identifier (com.Company.ProductName) will not work correctly.");
                 }
 
-                if (!ManifestMod.CheckManifest())
-                {
+                if (!ManifestMod.CheckManifest()) {
                     // If something is wrong with the Android Manifest, try to regenerate it to fix it for the next build.
                     ManifestMod.GenerateManifest();
                 }
             } else if (target == BuildTarget.iOS) {
-                ConfigurePluginPlatforms ();
+                ConfigurePluginPlatforms();
             }
         }
 
-        public static void ConfigurePluginPlatforms ()
+        public static void ConfigurePluginPlatforms()
         {
             PluginImporter[] importers = PluginImporter.GetAllImporters();
             PluginImporter iOSPlugin = null;
@@ -62,10 +63,10 @@ namespace AudienceNetwork.Editor
             foreach (PluginImporter importer in importers) {
                 if (importer.assetPath.Contains(AudienceNetworkFramework)) {
                     iOSPlugin = importer;
-                    Debug.Log ("Audience Network iOS plugin found at " + importer.assetPath + ".");
+                    Debug.Log("Audience Network iOS plugin found at " + importer.assetPath + ".");
                 } else if (importer.assetPath.Contains(AudienceNetworkAAR)) {
                     androidPlugin = importer;
-                    Debug.Log ("Audience Network Android plugin found at " + importer.assetPath + ".");
+                    Debug.Log("Audience Network Android plugin found at " + importer.assetPath + ".");
                 }
             }
             if (iOSPlugin != null) {

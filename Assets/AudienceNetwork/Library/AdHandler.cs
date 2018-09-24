@@ -13,38 +13,41 @@ namespace AudienceNetwork
     {
         private readonly static Queue<Action> executeOnMainThreadQueue = new Queue<Action>();
 
-        public void executeOnMainThread (Action action)
+        public void executeOnMainThread(Action action)
         {
             executeOnMainThreadQueue.Enqueue(action);
         }
 
-        public void Update () {
+        void Update()
+        {
             // dispatch stuff on main thread
-            while (executeOnMainThreadQueue.Count > 0)
-            {
+            while (executeOnMainThreadQueue.Count > 0) {
                 executeOnMainThreadQueue.Dequeue().Invoke();
             }
         }
 
-        public void removeFromParent () {
-            #if UNITY_EDITOR
+        public void removeFromParent()
+        {
+#if UNITY_EDITOR
 //          UnityEngine.Object.DestroyImmediate (this);
-            #else
-            UnityEngine.Object.Destroy (this);
-            #endif
+#else
+            UnityEngine.Object.Destroy(this);
+#endif
         }
     }
 
     public delegate void FBNativeAdHandlerValidationCallback(bool success);
 
-    [RequireComponent (typeof (RectTransform))]
+    [RequireComponent(typeof(RectTransform))]
     public class NativeAdHandler : AdHandler
     {
         public int minViewabilityPercentage;
         public float minAlpha;
         public int maxRotation;
         public int checkViewabilityInterval;
-        new public Camera camera;
+#pragma warning disable 109
+        public new Camera camera;
+#pragma warning restore 109
 
         public FBNativeAdHandlerValidationCallback validationCallback;
 
@@ -52,7 +55,7 @@ namespace AudienceNetwork
         private bool impressionLogged;
         private bool shouldCheckImpression;
 
-        public void startImpressionValidation ()
+        public void startImpressionValidation()
         {
             if (!this.enabled) {
                 this.enabled = true;
@@ -60,18 +63,17 @@ namespace AudienceNetwork
             this.shouldCheckImpression = true;
         }
 
-        public void stopImpressionValidation ()
+        public void stopImpressionValidation()
         {
             this.shouldCheckImpression = false;
         }
 
-        public void Update ()
+        void OnGUI()
         {
-            base.Update ();
-            this.checkImpression ();
+            this.checkImpression();
         }
 
-        private bool checkImpression ()
+        private bool checkImpression()
         {
             float currentTime = Time.time;
             float secondsSinceLastCheck = currentTime - this.lastImpressionCheckTime;
@@ -89,17 +91,24 @@ namespace AudienceNetwork
                 }
 
                 while (currentObject != null) {
-                    bool currentObjectViewable = this.checkGameObjectViewability (camera, currentObject);
+                    Canvas canvas = currentObject.GetComponent<Canvas>();
+                    if (canvas != null) {
+                        // Break if the current object is a nested world canvas
+                        if (canvas.renderMode == RenderMode.WorldSpace) {
+                            break;
+                        }
+                    }
+
+                    bool currentObjectViewable = this.checkGameObjectViewability(camera, currentObject);
                     if (!currentObjectViewable) {
                         if (this.validationCallback != null) {
                             this.validationCallback(false);
                         }
                         return false;
                     }
-                    Transform transform = currentObject.transform;
-                    Transform parentTransform = (transform == null) ? null : transform.parent;
-                    currentObject = (parentTransform == null) ? null : parentTransform.gameObject;
+                    currentObject = null;
                 };
+
                 if (this.validationCallback != null) {
                     this.validationCallback(true);
                 }
@@ -108,102 +117,107 @@ namespace AudienceNetwork
             return this.impressionLogged;
         }
 
-        private bool logViewability (bool success, string message)
+        private bool logViewability(bool success, string message)
         {
             if (!success) {
-                Debug.Log ("Viewability validation failed: " + message);
+                Debug.Log("Viewability validation failed: " + message);
             } else {
-                Debug.Log ("Viewability validation success! " + message);
+                Debug.Log("Viewability validation success! " + message);
             }
             return success;
         }
 
-        private bool checkGameObjectViewability (Camera camera, GameObject gameObject)
+        private bool checkGameObjectViewability(Camera camera, GameObject gameObject)
         {
+            // Check that we have all that we need to work with
             if (gameObject == null) {
-                return this.logViewability (false, "GameObject is null.");
+                return this.logViewability(false, "GameObject is null.");
             }
 
             if (camera == null) {
-                return this.logViewability (false, "Camera is null.");
+                return this.logViewability(false, "Camera is null.");
             }
 
             if (!gameObject.activeInHierarchy) {
-                return this.logViewability (false, "GameObject is not active in hierarchy.");
+                return this.logViewability(false, "GameObject is not active in hierarchy.");
             }
 
-            RectTransform transform = gameObject.transform as RectTransform;
-            Vector3 position = transform.position;
-
-            Vector2 rect = transform.sizeDelta;
-            float width = rect.x;
-            float height = rect.y;
-            Vector3 positionOnScreen = this.calculateWorldPosition (position, camera); //camera.WorldToScreenPoint (position);
-
-            // position is in center of object, adjust
-            positionOnScreen.x = positionOnScreen.x - (width / 2.0f);
-            positionOnScreen.y = positionOnScreen.y - (0 / 2.0f);
-            Rect screenSize = camera.pixelRect;
-
-            if (width <= 0 && height <= 0) {
-                return this.logViewability (false, "GameObject's height/width is less than or equal to zero.");
+            Canvas canvas = getCanvas(gameObject);
+            if (canvas == null) {
+                return this.logViewability(false, "GameObject is missing a Canvas parent.");
             }
 
-            CanvasGroup[] groups = gameObject.GetComponents<CanvasGroup> ();
-            foreach (CanvasGroup group in groups) {
+            // Cull items that do not pass the alpha test
+            CanvasGroup[] canvasGroups = gameObject.GetComponents<CanvasGroup>();
+            foreach (CanvasGroup group in canvasGroups) {
                 if (group.alpha < this.minAlpha) {
-                    return this.logViewability (false, "GameObject has a CanvasGroup with less than the minimum alpha required.");
+                    return this.logViewability(false, "GameObject has a CanvasGroup with less than the minimum alpha required.");
                 }
             }
 
-            if ((positionOnScreen.x < 0) || (positionOnScreen.x > (screenSize.width - width))) {
-                return this.logViewability (false, "GameObject is not on screen. (x axis)");
-            }
-            if (positionOnScreen.y < 0 || positionOnScreen.y > (screenSize.height - 0)) {
-                return this.logViewability (false, "GameObject is not on screen. (y axis)");
-            }
+            RectTransform transform = gameObject.transform as RectTransform;
 
-            int verticalInvisibleThreshold = (int)(height * (100 - this.minViewabilityPercentage) / 100);
-
-            if (-positionOnScreen.y > verticalInvisibleThreshold) {
-                return this.logViewability (false, "GameObject is too far offscreen.");
+            // Check if the width / height are valid
+            if (transform.rect.width <= 0 || transform.rect.height <= 0) {
+                return this.logViewability(false, "GameObject's height/width is less than or equal to zero.");
             }
 
-            if ((positionOnScreen.y + height) - (screenSize.height) > verticalInvisibleThreshold) {
-                return this.logViewability (false, "GameObject is too far offscreen.");
+            Vector3[] worldCorners = new Vector3[4];
+            transform.GetWorldCorners(worldCorners);
+            Vector3 gameObjectBottomLeft = worldCorners [0];
+            Vector3 gameObjectTopRight = worldCorners [2];
+            Vector3 cameraBottomLeft = camera.pixelRect.min;
+            Vector3 cameraTopRight = camera.pixelRect.max;
+
+            if (canvas.renderMode != RenderMode.ScreenSpaceOverlay) {
+                gameObjectBottomLeft = camera.WorldToScreenPoint(gameObjectBottomLeft);
+                gameObjectTopRight = camera.WorldToScreenPoint(gameObjectTopRight);
             }
 
-            // Check rotation
+            // Check that gameObject has 100% width visible
+            if (gameObjectBottomLeft.x < cameraBottomLeft.x || gameObjectTopRight.x > cameraTopRight.x) {
+                return this.logViewability(false, "Less than 100% of the width of the GameObject is inside the viewport.");
+            }
+
+            // Check that gameObject height is bigger than minimum viewability precentage
+            int verticalInvisibleThreshold = (int)(camera.pixelRect.height * (100 - this.minViewabilityPercentage) / 100);
+            if (cameraTopRight.y - gameObjectTopRight.y > verticalInvisibleThreshold) {
+                return this.logViewability(false, "Less than " + this.minViewabilityPercentage + "% visible from the top.");
+            }
+            if (gameObjectBottomLeft.y - cameraBottomLeft.y > verticalInvisibleThreshold) {
+                return this.logViewability(false, "Less than " + this.minViewabilityPercentage + "% visible from the bottom.");
+            }
+
+            // Check that item is not rotated too much
             Vector3 rotation = transform.eulerAngles;
-            int xRotation = Mathf.FloorToInt (rotation.x);
-            int yRotation = Mathf.FloorToInt (rotation.y);
-            int zRotation = Mathf.FloorToInt (rotation.z);
+            int xRotation = Mathf.FloorToInt(rotation.x);
+            int yRotation = Mathf.FloorToInt(rotation.y);
+            int zRotation = Mathf.FloorToInt(rotation.z);
 
             int minRotation = 360 - this.maxRotation;
             int maxRotation = this.maxRotation;
 
             if (!(xRotation >= minRotation || xRotation <= maxRotation)) {
-                return this.logViewability (false, "GameObject is rotated too much. (x axis)");
+                return this.logViewability(false, "GameObject is rotated too much. (x axis)");
             } else if (!(yRotation >= minRotation || yRotation <= maxRotation)) {
-                return this.logViewability (false, "GameObject is rotated too much. (y axis)");
+                return this.logViewability(false, "GameObject is rotated too much. (y axis)");
             } else if (!(zRotation >= minRotation || zRotation <= maxRotation)) {
-                return this.logViewability (false, "GameObject is rotated too much. (z axis)");
+                return this.logViewability(false, "GameObject is rotated too much. (z axis)");
             }
 
-            return this.logViewability (true, "--------------- VALID IMPRESSION REGISTERED! ----------------------");
+            return this.logViewability(true, "--------------- VALID IMPRESSION REGISTERED! ----------------------");
         }
 
-        private Vector3 calculateWorldPosition(Vector3 position, Camera camera) {
-            Vector3 cameraNormal = camera.transform.forward;
-            Vector3 vectorFromCamera = position - camera.transform.position;
-            float cameraNormalDot = Vector3.Dot (cameraNormal, vectorFromCamera.normalized);
-            if (cameraNormalDot <= 0f) {
-                float camDot = Vector3.Dot (cameraNormal, vectorFromCamera);
-                Vector3 proj = (cameraNormal * camDot * 1.01f);
-                position = camera.transform.position + (vectorFromCamera - proj);
+        private Canvas getCanvas(GameObject gameObject)
+        {
+            if (gameObject.GetComponent<Canvas>() != null) {
+                return gameObject.GetComponent<Canvas>();
+            } else {
+                if (gameObject.transform.parent != null) {
+                    return getCanvas(gameObject.transform.parent.gameObject);
+                }
             }
-
-            return position;
+            return null;
         }
     }
 }

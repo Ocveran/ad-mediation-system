@@ -2,7 +2,7 @@
     "group":       "Chartboost",
     "patches":     [],
     "libs":        [],
-    "frameworks":  ["StoreKit.framework","Security.framework","AdSupport.framework:weak"],
+    "frameworks":  ["StoreKit.framework","Security.framework","AdSupport.framework:weak","WebKit.framework"],
     "frameworksearchpaths":[],
     "headerpaths": [],
     "files":       [],

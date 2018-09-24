@@ -13,34 +13,47 @@
 #import "ALAdType.h"
 #import "ALManagedLoadDelegate.h"
 #import "ALEventTypes.h"
+#import "ALPrivacySettings.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 UIView* UnityGetGLView();
+
+NSString * kDefaultZoneIdForRegularBanner = @"zone_id_regular_banner";
+NSString * kDefaultZoneIdForRegularInterstitial = @"zone_id_regular_interstitial";
+NSString * kDefaultZoneIdForIncentInterstitial = @"zone_id_incent_interstitial";
 
 // When native code plugin is implemented in .mm / .cpp file, then functions
 // should be surrounded with extern "C" block to conform C function naming rules
 extern "C" {
-    static const NSString * UNITY_PLUGIN_VERSION = @"3.6.2";
-    static const NSString * UNITY_BUILD_NUMBER = @"3602";
-
-    static BOOL adLoaded = NO;
-
+    static const NSString * UNITY_PLUGIN_VERSION = @"5.1.3";
+    static const NSString * UNITY_BUILD_NUMBER = @"50103";
+    
     static const CGFloat POSITION_CENTER = -10000;
     static const CGFloat POSITION_LEFT = -20000;
     static const CGFloat POSITION_RIGHT = -30000;
     static const CGFloat POSITION_TOP = -40000;
     static const CGFloat POSITION_BOTTOM = -50000;
+    static const CGFloat POSITION_SAFE_BOTTOM = -60000;
 
-    static NSString * const SERIALIZED_KEY_VALUE_PAIR_SEPARATOR = [[NSString stringWithFormat: @"%c", 28] retain];
-    static NSString * const SERIALIZED_KEY_VALUE_SEPARATOR = [[NSString stringWithFormat: @"%c", 29] retain];
+    static NSString * const SERIALIZED_KEY_VALUE_PAIR_SEPARATOR = [NSString stringWithFormat: @"%c", 28];
+    static NSString * const SERIALIZED_KEY_VALUE_SEPARATOR = [NSString stringWithFormat: @"%c", 29];
 
     static CGFloat adX;
     static CGFloat adY;
 
-    static ALInterstitialCache* interCache;
+    static ALInterstitialCache* interstitialCache;
 
     static ALAdView *adView;
     static ALAdDelegateWrapper* delegateWrapper;
-    static ALIncentivizedInterstitialAd* incentInter;
+    
+    /**
+     * Helper method definitions
+     */
+    NSString * _AppLovinGetRegularInterstitialZoneIdentifier(const char *zoneId);
+    NSString * _AppLovinGetIncentInterstitialZoneIdentifier(const char *zoneId);
+    void _AppLovinLoadShowIntersitital( const char *zoneId, BOOL isIncentivized, BOOL showWhenLoaded );
 
     /**
      *  For internal use only
@@ -48,51 +61,73 @@ extern "C" {
 
     void maybeInitializeDelegateWrapper()
     {
-        if(!delegateWrapper) { delegateWrapper = [[[ALAdDelegateWrapper alloc] init] retain]; }
-        if(!interCache) { interCache = [[ALInterstitialCache shared] retain]; }
-
-        interCache.wrapperToNotify = delegateWrapper;
+        if(!delegateWrapper) { delegateWrapper = [[ALAdDelegateWrapper alloc] init]; }
+        if(!interstitialCache) { interstitialCache = [ALInterstitialCache shared]; }
     }
+    
+#pragma mark - SDK Initialization
+    
+    void _AppLovinInitializeSdk()
+    {
+        [[ALSdk shared] initializeSdk];
+        [[ALSdk shared] setPluginVersion: [NSString stringWithFormat:@"unity-%@", UNITY_PLUGIN_VERSION]];
+        
+        maybeInitializeDelegateWrapper();
+    }
+    
+    void _AppLovinSetUnityAdListener(const char* gameObjectToNotify)
+    {
+        maybeInitializeDelegateWrapper();
+        delegateWrapper.gameObjectToNotify = [NSString stringWithCString: gameObjectToNotify encoding: NSUTF8StringEncoding];
+    }
+    
+#pragma mark - AdView Methods
 
     ALAdView *SharedAdview()
     {
         if (!adView)
         {
             [[ALSdk shared] setPluginVersion:[NSString stringWithFormat:@"unity-%@", UNITY_PLUGIN_VERSION]];
-            adView = [[[ALAdView alloc] initWithSize: [ALAdSize sizeBanner]] retain];
+            adView = [[ALAdView alloc] initWithSize: [ALAdSize sizeBanner]];
 
             maybeInitializeDelegateWrapper();
-            [adView setAdLoadDelegate: [ALManagedLoadDelegate sharedDelegateForSize: [ALAdSize sizeBanner] type: [ALAdType typeRegular] wrapper: delegateWrapper]];
+            ALManagedLoadDelegate *managedLoadDelegate = [ALManagedLoadDelegate sharedDelegateForZoneIdentifier: kDefaultZoneIdForRegularBanner
+                                                                                                           size: [ALAdSize sizeBanner]
+                                                                                                           type: [ALAdType typeRegular]
+                                                                                                        wrapper: delegateWrapper];
+            managedLoadDelegate.adView = adView;
+            [adView setAdLoadDelegate: managedLoadDelegate];
             [adView setAdDisplayDelegate: delegateWrapper];
+            [adView setAdEventDelegate: delegateWrapper];
         }
 
         return adView;
     }
 
     /**
-     * Initialize the AppLovin SDK manually
+     *  Show AppLovin Banner or MRec Ad
      */
-    void _AppLovinInitializeSdk()
-    {
-        [[ALSdk shared] initializeSdk];
-        [[ALSdk shared] setPluginVersion: [NSString stringWithFormat:@"unity-%@", UNITY_PLUGIN_VERSION]];
-        maybeInitializeDelegateWrapper();
-    }
-
-
-    /**
-     *  Show AppLovin Banner Ad
-     */
-    void _AppLovinShowAd()
+    void _AppLovinShowAd(const char *zoneId)
     {
         [SharedAdview() setHidden:false];
-
-        if (!adLoaded)
+        
+        if ( zoneId != NULL )
+        {
+            ALManagedLoadDelegate *delegate = [ALManagedLoadDelegate sharedDelegateForZoneIdentifier: kDefaultZoneIdForRegularBanner
+                                                                                                size: [ALAdSize sizeBanner]
+                                                                                                type: [ALAdType typeRegular]
+                                                                                             wrapper: delegateWrapper];
+            delegate.showBannerOnLoad = YES;
+            
+            NSString *zoneIdentifier = [NSString stringWithCString: zoneId encoding: NSStringEncodingConversionAllowLossy];
+            [[ALSdk shared].adService loadNextAdForZoneIdentifier: zoneIdentifier andNotify: delegate];
+        }
+        else
         {
             [SharedAdview() loadNextAd];
-            [UnityGetGLView() addSubview:SharedAdview()];
-            adLoaded = YES;
         }
+        
+        [UnityGetGLView() addSubview:SharedAdview()];
     }
 
     /**
@@ -102,39 +137,6 @@ extern "C" {
     {
         [SharedAdview() setHidden:true];
     }
-
-
-    /**
-     *  Show AppLovin Interstitial Ad
-     */
-    void _AppLovinShowInterstitial(const char * placement)
-    {
-        maybeInitializeDelegateWrapper();
-
-        [ALInterstitialAd shared].adDisplayDelegate = delegateWrapper;
-        [ALInterstitialAd shared].adLoadDelegate = [ALManagedLoadDelegate sharedDelegateForSize: [ALAdSize sizeInterstitial] type: [ALAdType typeRegular] wrapper: delegateWrapper];
-        [ALInterstitialAd shared].adVideoPlaybackDelegate = delegateWrapper;
-
-        ALAd* lastAd = [[ALInterstitialCache shared].lastAd retain];
-        ALInterstitialAd* shared = [ALInterstitialAd shared];
-
-        NSString * placementName = nil;
-
-        if (placement != NULL)
-        {
-            placementName = [NSString stringWithCString: placement encoding: NSStringEncodingConversionAllowLossy];
-        }
-
-        if( lastAd )
-        {
-            [shared showOver: [[UIApplication sharedApplication] keyWindow] placement: placementName andRender: lastAd];
-        }
-        else
-        {
-            [ALInterstitialAd showOver:[[UIApplication sharedApplication] keyWindow] placement: placementName];
-        }
-    }
-
 
     /**
      *  For internal use only
@@ -207,6 +209,20 @@ extern "C" {
         {
             newRect.origin.y = getAvailableScreenHeight() - newRect.size.height;
         }
+        else if ( adY == POSITION_SAFE_BOTTOM )
+        {
+            // If this was used on iOS 11+
+            if ( [UIWindow instancesRespondToSelector: @selector(safeAreaInsets)] )
+            {
+                NSValue *safeAreaInsetsValue = [[UIApplication sharedApplication].keyWindow valueForKey: @"safeAreaInsets"];
+                UIEdgeInsets safeAreaInsets = safeAreaInsetsValue.UIEdgeInsetsValue;
+                newRect.origin.y = getAvailableScreenHeight() - newRect.size.height - safeAreaInsets.bottom;
+            }
+            else
+            {
+                newRect.origin.y = getAvailableScreenHeight() - newRect.size.height;
+            }
+        }
         else
         {
             newRect.origin.y = adY;
@@ -218,10 +234,10 @@ extern "C" {
     /**
      * Set the position of the banner ad
      *
-     * @param float x   Horizontal position of the ad in dp or constant (POSITION_LEFT, POSITION_CENTER, POSITION_RIGHT)
-     * @param float y   Veritcal position of the ad in dp or constant (POSITION_TOP, POSITION_BOTTOM)
+     * @param x   Horizontal position of the ad in dp or constant (POSITION_LEFT, POSITION_CENTER, POSITION_RIGHT)
+     * @param y   Veritcal position of the ad in dp or constant (POSITION_TOP, POSITION_BOTTOM)
      */
-    void _AppLovinSetAdPosition(CGFloat x, CGFloat y)
+    void _AppLovinSetAdPosition(float x, float y)
     {
         adX = x;
         adY = y;
@@ -232,9 +248,9 @@ extern "C" {
     /**
      * Set the width of the banner ad
      *
-     * @param float width   Width of the ad in dp
+     * @param width   Width of the ad in dp
      */
-    void _AppLovinSetAdWidth(CGFloat width)
+    void _AppLovinSetAdWidth(int width)
     {
         CGRect newRect = [SharedAdview() frame];
 
@@ -245,131 +261,23 @@ extern "C" {
         updateAdPosition();
     }
 
-    /**
-     * Set the gender for targeting
-     *
-     * @param string gender    Gender of the user. Accepted values: m, f
-     */
-    void _AppLovinSetGender(const char * gender)
-    {
-        if (!gender) { return; };
-
-        NSString * genderStr = [NSString stringWithUTF8String:gender];
-
-        char genderChar = 'u';
-        if ([genderStr isEqualToString:@"m"])
-        {
-            genderChar = kALGenderMale;
-        }
-        else if ([genderStr isEqualToString:@"f"])
-        {
-            genderChar = kALGenderFemale;
-        }
-
-        [[[ALSdk shared] targetingData] setGender:genderChar];
-    }
-
-    /**
-     * Set the year of birth for targeting
-     *
-     * @param int birthYear    The current user's year of birth
-     */
-    void _AppLovinSetBirthYear(int birthYear)
-    {
-        [[[ALSdk shared] targetingData] setBirthYear:birthYear];
-    }
-
-    /**
-     * Set the language for targeting
-     *
-     * @param string language    The current user's language
-     */
-    void _AppLovinSetLanguage(const char * language)
-    {
-        if (!language) { return; };
-
-        NSString * languageStr = [NSString stringWithUTF8String:language];
-
-        [[[ALSdk shared] targetingData] setLanguage:languageStr];
-    }
-
-    /**
-     * Set the country for targeting
-     *
-     * @deprecated Explicitly setting `country` targeting data is deprecated.
-     *
-     * @param string country    The current user's country
-     */
-    void _AppLovinSetCountry(const char * country)
-    {
-        NSLog(@"[AppLovinUnity] Explicitly setting `country` targeting data is deprecated.");
-    }
-
-    /**
-     * Set the carrier for targeting
-     *
-     * @deprecated Explicitly setting `carrier` targeting data is deprecated.
-     *
-     * @param string carrier    The current user's carrier
-     */
-    void _AppLovinSetCarrier(const char * carrier)
-    {
-        NSLog(@"[AppLovinUnity] Explicitly setting `carrier` targeting data is deprecated.");
-    }
-
-    /**
-     * Set the user's interests for targeting
-     *
-     * @param string[] interests    The current user's intersts
-     */
-    void _AppLovinSetInterests(const char * interests[])
-    {
-        NSMutableArray * interestsArr = [NSMutableArray arrayWithCapacity:sizeof(*interests)];
-        for (int i = 0; i < sizeof(*interests); i++)
-        {
-            if (interests[i])
-            {
-                [interestsArr addObject:[NSString stringWithUTF8String:interests[i]]];
-            }
-        }
-
-        [[[ALSdk shared] targetingData] setInterests:interestsArr];
-    }
-
-    /**
-     * Set the app's keywords for targeting
-     *
-     * @param string[] keywords    The current app's keywords
-     */
-    void _AppLovinSetKeywords(const char * keywords[])
-    {
-        NSMutableArray * keywordsArr = [NSMutableArray arrayWithCapacity:sizeof(*keywords)];
-        for (int i = 0; i < sizeof(*keywords); i++)
-        {
-            if (keywords[i])
-            {
-                [keywordsArr addObject:[NSString stringWithUTF8String:keywords[i]]];
-            }
-        }
-        [[[ALSdk shared] targetingData] setKeywords:keywordsArr];
-    }
-
-
+#pragma mark - SDK Settings
+    
     /**
      * Set the AppLovin SDK key for the application
      *
-     * @param string sdkKey    The SDK key for the application
+     * @param sdkKey    The SDK key for the application
      */
     void _AppLovinSetSdkKey(const char * sdkKey)
     {
         if (!sdkKey) { return; };
 
-        NSString * sdkKeyStr = [NSString stringWithUTF8String:sdkKey];
+        NSString *sdkKeyStr = [NSString stringWithUTF8String: sdkKey];
 
-        NSDictionary* infoDict = [[NSBundle mainBundle] infoDictionary];
-        [infoDict setValue:sdkKeyStr forKey:@"AppLovinSdkKey"];
+        NSDictionary *infoDict = [[NSBundle mainBundle] infoDictionary];
+        [infoDict setValue: sdkKeyStr forKey: @"AppLovinSdkKey"];
     }
-
+    
     void _AppLovinSetVerboseLoggingOn(const char * verboseLogging)
     {
         NSString* verboseLoggingStr = [NSString stringWithUTF8String: verboseLogging];
@@ -387,97 +295,215 @@ extern "C" {
         return [[ALSdk shared] settings].muted;
     }
     
-    void _AppLovinPreloadInterstitial()
+    void _AppLovinSetTestAdsEnabled(const char * enabled)
     {
-        [[[ALSdk shared] adService] loadNextAd: [ALAdSize sizeInterstitial] andNotify: [ALManagedLoadDelegate sharedDelegateForSize: [ALAdSize sizeInterstitial] type: [ALAdType typeRegular] wrapper: interCache]];
+        NSString *enabledStr = [NSString stringWithUTF8String: enabled];
+        [[ALSdk shared] settings].isTestAdsEnabled = [enabledStr boolValue];
     }
-
-    bool _AppLovinHasPreloadedInterstitial()
+    
+    bool _AppLovinIsTestAdsEnabled()
     {
-        return ([interCache lastAd] != nil) || [[[ALSdk shared] adService] hasPreloadedAdOfSize: [ALAdSize sizeInterstitial]];
+        return [[ALSdk shared] settings].isTestAdsEnabled;
     }
-
+    
+    //
+    // Interstitial ad loading / showing
+    //
+    
+    void _AppLovinPreloadInterstitial( const char *zoneId )
+    {
+        _AppLovinLoadShowIntersitital( zoneId, NO, NO);
+    }
+    
+    bool _AppLovinHasPreloadedInterstitial(const char *zoneId)
+    {
+        NSString * zoneIdentifier = _AppLovinGetRegularInterstitialZoneIdentifier( zoneId );
+        
+        ALAdService * adService = [ALSdk shared].adService;
+        BOOL hasPreloadedInter = NO;
+        if ( zoneId != NULL )
+        {
+            hasPreloadedInter = [adService hasPreloadedAdForZoneIdentifier: zoneIdentifier];
+        }
+        else
+        {
+            hasPreloadedInter = [adService hasPreloadedAdOfSize: [ALAdSize sizeInterstitial]];
+        }
+        
+        return [interstitialCache hasAdForZoneIdentifier: zoneIdentifier] || hasPreloadedInter;
+    }
+    
+    void _AppLovinShowInterstitialForZoneIdAndPlacement(const char *zoneId, const char *placement)
+    {
+        maybeInitializeDelegateWrapper();
+        
+        [ALInterstitialAd shared].adDisplayDelegate = delegateWrapper;
+        [ALInterstitialAd shared].adVideoPlaybackDelegate = delegateWrapper;
+        
+        NSString * zoneIdentifier = _AppLovinGetRegularInterstitialZoneIdentifier( zoneId );
+        ALAd *ad = [interstitialCache adForZoneIdentifier: zoneIdentifier];
+        
+        // If the ad is already loaded
+        if ( ad )
+        {
+            // Just display it
+            [[ALInterstitialAd shared] showOver: [UIApplication sharedApplication].keyWindow
+                                      andRender: ad];
+        }
+        // Otherwise, we need to load the ad
+        else
+        {
+            _AppLovinLoadShowIntersitital( zoneId, NO, YES );
+        }
+    }
+    
+    void _AppLovinShowInterstitial(const char *placement)
+    {
+        _AppLovinShowInterstitialForZoneIdAndPlacement( NULL, placement );
+    }
+    
+    void _AppLovinShowInterstitialForZoneId(const char *zoneId)
+    {
+        _AppLovinShowInterstitialForZoneIdAndPlacement( zoneId, NULL );
+    }
+    
     bool _AppLovinIsInterstitialShowing()
     {
         return ([delegateWrapper isInterstitialShowing] ? true : false);
     }
-
-    /**
-     * Set extra targeting parameters
-     *
-     * @param string key    The key for the parameter
-     * @param string val    The value of the parameter
-     */
-    void _AppLovinPutExtra(const char * key, const char * val)
-    {
-        if (!key || !val) { return; };
-
-
-        NSString * keyStr = [NSString stringWithCString: key encoding: NSUTF8StringEncoding];
-        NSString * valStr = [NSString stringWithCString: val encoding: NSUTF8StringEncoding];
-
-        [[[ALSdk shared] targetingData] setExtraValue:valStr forKey:keyStr];
-    }
-
-    void _AppLovinSetUnityAdListener(const char* gameObjectToNotify)
-    {
-        maybeInitializeDelegateWrapper();
-        delegateWrapper.gameObjectToNotify = [[NSString stringWithCString: gameObjectToNotify encoding: NSUTF8StringEncoding] retain];
-    }
-
-    void _AppLovinLoadIncentInterstitial()
-    {
-        maybeInitializeDelegateWrapper();
-
-        if(!incentInter)
-        {
-            incentInter = [[[ALIncentivizedInterstitialAd alloc] initWithSdk: [ALSdk shared]] retain];
-        }
-
-        [incentInter preloadAndNotify: [ALManagedLoadDelegate sharedDelegateForSize: [ALAdSize sizeInterstitial] type: [ALAdType typeIncentivized] wrapper: delegateWrapper]];
-    }
-
-    void _AppLovinShowIncentInterstitial(const char * placement)
-    {
-        maybeInitializeDelegateWrapper();
-
-        NSString * placementName = nil;
-
-        if (placement != NULL)
-        {
-            placementName = [NSString stringWithCString: placement encoding: NSStringEncodingConversionAllowLossy];
-        }
-
-        if(incentInter)
-        {
-            incentInter.adDisplayDelegate = delegateWrapper;
-            incentInter.adVideoPlaybackDelegate = delegateWrapper;
-            [incentInter showOver: [[UIApplication sharedApplication] keyWindow] placement: placementName andNotify: delegateWrapper];
-        }
-    }
-
-    void _AppLovinSetIncentivizedUserName(const char * username)
-    {
-        [ALIncentivizedInterstitialAd setUserIdentifier: [[NSString stringWithCString: username encoding: NSStringEncodingConversionAllowLossy] retain]];
-    }
-
-    bool _AppLovinIsIncentReady()
-    {
-        maybeInitializeDelegateWrapper();
-        return delegateWrapper.isIncentReady ? true : false;
-    }
-
+    
     bool _AppLovinIsCurrentInterstitialVideo()
     {
         maybeInitializeDelegateWrapper();
-
-        if(interCache.lastAd)
+        
+        NSString * zoneIdentifier = _AppLovinGetRegularInterstitialZoneIdentifier( NULL );
+        ALAd * cachedAd = [interstitialCache adForZoneIdentifier: zoneIdentifier];
+        if ( cachedAd )
         {
-            return interCache.lastAd.videoAd ? true : false;
+            return cachedAd.videoAd ? true : false;
         }
+        
         return false;
     }
-
+    
+#pragma mark - Incentivized ad loading / showing
+    
+    void _AppLovinSetIncentivizedUserName(const char *username)
+    {
+        NSString *usernameString = [NSString stringWithCString: username encoding: NSStringEncodingConversionAllowLossy];
+        [ALIncentivizedInterstitialAd setUserIdentifier: usernameString];
+    }
+    
+    bool _AppLovinIsIncentReady(const char *zoneId)
+    {
+        maybeInitializeDelegateWrapper();
+        
+        if ( zoneId != NULL )
+        {
+            NSString * zoneIdentifier = _AppLovinGetIncentInterstitialZoneIdentifier( zoneId );
+            return [interstitialCache hasAdForZoneIdentifier: zoneIdentifier];
+        }
+        else
+        {
+            return [[ALIncentivizedInterstitialAd shared] isReadyForDisplay];
+        }
+    }
+    
+    void _AppLovinLoadIncentInterstitial(const char *zoneId)
+    {
+        maybeInitializeDelegateWrapper();
+        
+        _AppLovinLoadShowIntersitital( zoneId, YES, NO);
+    }
+    
+    void _AppLovinShowIncentInterstitialForZoneIdAndPlacement(const char *zoneId, const char *placement)
+    {
+        maybeInitializeDelegateWrapper();
+        
+        [ALIncentivizedInterstitialAd shared].adDisplayDelegate = delegateWrapper;
+        [ALIncentivizedInterstitialAd shared].adVideoPlaybackDelegate = delegateWrapper;
+        
+        // If we need to use zone-based API
+        if ( zoneId != NULL )
+        {
+            NSString * zoneIdentifier = _AppLovinGetIncentInterstitialZoneIdentifier( zoneId );
+            ALAd *ad = [interstitialCache adForZoneIdentifier: zoneIdentifier];
+            if ( ad )
+            {
+                // Just display it
+                [[ALIncentivizedInterstitialAd shared] showOver: [UIApplication sharedApplication].keyWindow
+                                                       renderAd: ad
+                                                      andNotify: delegateWrapper];
+            }
+        }
+        else
+        {
+            [[ALIncentivizedInterstitialAd shared] showOver: [UIApplication sharedApplication].keyWindow
+                                                  andNotify: delegateWrapper];
+        }
+    }
+    
+    void _AppLovinLoadShowIntersitital( const char *zoneId, BOOL isIncentivized, BOOL showWhenLoaded )
+    {
+        // Determine ad type and
+        ALAdType * adType;
+        NSString * zoneIdentifier;
+        
+        if ( isIncentivized )
+        {
+            adType = [ALAdType typeIncentivized];
+            zoneIdentifier = _AppLovinGetIncentInterstitialZoneIdentifier( zoneId );
+        }
+        else
+        {
+            adType = [ALAdType typeRegular];
+            zoneIdentifier = _AppLovinGetRegularInterstitialZoneIdentifier( zoneId );
+        }
+        
+        ALManagedLoadDelegate *delegate = [ALManagedLoadDelegate sharedDelegateForZoneIdentifier: zoneIdentifier
+                                                                                            size: [ALAdSize sizeInterstitial]
+                                                                                            type: adType
+                                                                                         wrapper: delegateWrapper];
+        delegate.showInterstitialOnLoad = showWhenLoaded;
+        delegate.cacheInterstitialOnLoad = YES;
+        
+        
+        // If we are using zone-based load
+        if ( zoneId != NULL )
+        {
+            // Use zone-based API
+            [[ALSdk shared].adService loadNextAdForZoneIdentifier: zoneIdentifier andNotify: delegate];
+        }
+        // Otherwise (regular ad requested)
+        else
+        {
+            // If we need an incentivized ad
+            if ( isIncentivized )
+            {
+                // Use incentivized API
+                [[ALIncentivizedInterstitialAd shared] preloadAndNotify: delegate];
+            }
+            // Otherwise (using regular intersitital)
+            else
+            {
+                // Use regular API
+                [[ALSdk shared].adService loadNextAd: [ALAdSize sizeInterstitial] andNotify: delegate];
+            }
+        }
+    }
+    
+    void _AppLovinShowIncentInterstitial(const char *placement)
+    {
+        _AppLovinShowIncentInterstitialForZoneIdAndPlacement( NULL, placement );
+    }
+    
+    void _AppLovinShowIncentInterstitialForZoneId(const char *zoneId)
+    {
+        _AppLovinShowIncentInterstitialForZoneIdAndPlacement( zoneId, NULL );
+    }
+    
+#pragma mark - Analytics
+    
     NSDictionary* deserializeParameters(const char * serializedParameters)
     {
         if (serializedParameters != NULL)
@@ -485,32 +511,31 @@ extern "C" {
             NSString* objcSerializedParameters = [NSString stringWithCString: serializedParameters encoding: NSUTF8StringEncoding];
             NSArray* keyValuePairs = [objcSerializedParameters componentsSeparatedByString: SERIALIZED_KEY_VALUE_PAIR_SEPARATOR];
             NSMutableDictionary* deserializedParameters = [NSMutableDictionary dictionary];
-
+            
             for (NSString* keyValuePair in keyValuePairs)
             {
                 NSArray* splitPair = [keyValuePair componentsSeparatedByString: SERIALIZED_KEY_VALUE_SEPARATOR];
-
+                
                 if ([splitPair count] > 1)
                 {
                     NSString* key = [splitPair objectAtIndex: 0];
                     NSString* value = [splitPair objectAtIndex: 1];
-
+                    
                     if (key && value)
                     {
                         [deserializedParameters setObject: value forKey: key];
                     }
                 }
             }
-
-            return [deserializedParameters retain];
+            
+            return deserializedParameters;
         }
-
-        return [[NSDictionary dictionary] retain];
+        
+        return [NSDictionary dictionary];
     }
-
+    
     void _AppLovinTrackAnalyticEvent(const char * eventType, const char * serializedParameters)
     {
-
         // Some versions of Unity 5 have a bug where strings that come in via C# (e.g. the arguments here) get free()'d mid-method body.
         // Seems like a concurrency issue on their part. To avoid, we copy the strings and use the copies.
 
@@ -538,7 +563,7 @@ extern "C" {
 
         if ([objcEventType isEqualToString: kALEventTypeUserCompletedInAppPurchase])
         {
-            NSString * transactionIdentifier = [deserializedParameters[kALEventParameterStoreKitTransactionIdentifierKey] retain];
+            NSString * transactionIdentifier = deserializedParameters[kALEventParameterStoreKitTransactionIdentifierKey];
             [[ALSdk shared].eventService trackInAppPurchaseWithTransactionIdentifier: transactionIdentifier parameters: deserializedParameters];
         }
         else
@@ -546,5 +571,54 @@ extern "C" {
             [[ALSdk shared].eventService trackEvent: objcEventType parameters: deserializedParameters];
         }
     }
-
+    
+    NSString * _AppLovinGetRegularInterstitialZoneIdentifier(const char *zoneId)
+    {
+        if ( zoneId != NULL )
+        {
+            return [NSString stringWithCString: zoneId encoding: NSStringEncodingConversionAllowLossy];
+        }
+        else
+        {
+            return kDefaultZoneIdForRegularInterstitial;
+        }
+    }
+    
+    NSString * _AppLovinGetIncentInterstitialZoneIdentifier(const char *zoneId)
+    {        
+        if ( zoneId != NULL )
+        {
+            return [NSString stringWithCString: zoneId encoding: NSStringEncodingConversionAllowLossy];
+        }
+        else
+        {
+            return kDefaultZoneIdForIncentInterstitial;
+        }
+    }
+    
+#pragma mark - User Privacy
+    
+    void _AppLovinSetHasUserConsent(const char *hasUserConsent)
+    {
+        NSString *hasUserConsentString = [NSString stringWithUTF8String: hasUserConsent];
+        [ALPrivacySettings setHasUserConsent: [hasUserConsentString boolValue]];
+    }
+    
+    bool _AppLovinHasUserConsent()
+    {
+        return [ALPrivacySettings hasUserConsent];
+    }
+    
+    void _AppLovinSetIsAgeRestrictedUser(const char *isAgeRestrictedUser)
+    {
+        NSString *isAgeRestrictedUserString = [NSString stringWithUTF8String: isAgeRestrictedUser];
+        [ALPrivacySettings setIsAgeRestrictedUser: [isAgeRestrictedUserString boolValue]];
+    }
+    
+    bool _AppLovinIsAgeRestrictedUser()
+    {
+        return [ALPrivacySettings isAgeRestrictedUser];
+    }
 }
+
+#pragma clang diagnostic pop

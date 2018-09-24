@@ -15,7 +15,7 @@ namespace ChartboostSDK
 {
 	public class CBManifest
 	{
-		private static string unityNativeActivityName = "com.unity3d.player.UnityPlayerNativeActivity";
+		private static string unityPlayerActivityName = "com.unity3d.player.UnityPlayerActivity";
 
 		public static void GenerateManifest()
 		{
@@ -59,10 +59,10 @@ namespace ChartboostSDK
 				return false;
 			}
 
-			XmlElement unityActivityElement = FindElementWithAndroidName("activity", "name", ns, unityNativeActivityName, dict);
+			XmlElement unityActivityElement = FindElementWithAndroidName("activity", "name", ns, unityPlayerActivityName, dict);
 			if (unityActivityElement == null)
 			{
-				//Debug.LogError(string.Format("{0} activity is missing from your android manifest. Add \"<meta-data android:name=\"unityplayer.ForwardNativeEventsToDalvik\" android:value=\"true\" />\" to your activity tag so that Chartboost can forward touch events to the advertisements.", unityNativeActivityName));
+				Debug.LogError(string.Format("{0} activity is missing from your android manifest. Add \"<meta-data android:name=\"unityplayer.ForwardNativeEventsToDalvik\" android:value=\"true\" />\" to your activity tag so that Chartboost can forward touch events to the advertisements.", unityPlayerActivityName));
 				return false;
 			}
 
@@ -70,12 +70,12 @@ namespace ChartboostSDK
 			if (usesSDKElement == null)
 			{
 				usesSDKElement = doc.CreateElement("uses-sdk");
-				usesSDKElement.SetAttribute("minSdkVersion",ns,"9");
+				usesSDKElement.SetAttribute("minSdkVersion",ns,"16");
 				manNode.InsertBefore(usesSDKElement, dict);
 			}
-			else if (Convert.ToInt32(usesSDKElement.GetAttribute("minSdkVersion",ns)) < 9)
+			else if (Convert.ToInt32(usesSDKElement.GetAttribute("minSdkVersion",ns)) < 16)
 			{
-				//Debug.Log("Chartboost SDK requires the minSdkVersion to be atleast 9 (Android 2.3 and up), please update the same in the manifest file for chartboost sdk to work properly");
+				Debug.Log("Chartboost SDK requires the minSdkVersion to be atleast 16 (Android 4.1 and up), please update the same in the manifest file for chartboost sdk to work properly");
 				return false;
 			}
 
