@@ -405,7 +405,7 @@ namespace Virterix {
 
             IEnumerator ProcRefreshBannerAdType(AdType adType, AudienceNetworkPlacementData placement, float refreshTime) {
                 float lifeTime = 0.0f;
-                float period = 0.8f;
+                float period = 0.5f;
 
                 while (true) {
                     yield return new WaitForSecondsRealtime(period);

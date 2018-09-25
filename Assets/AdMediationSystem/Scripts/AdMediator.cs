@@ -34,7 +34,10 @@ namespace Virterix {
             [Tooltip("If banner type ad is displayed longer than set value when ad hide, then performs Fetch. (In Seconds)")]
             public float m_minDisplayTimeForBannerTypaAd = 0f;
             [Tooltip ("Is continue show ad after restart the app from the interrupt place.")]
-            public bool m_isContinueAfterEndSession; 
+            public bool m_isContinueAfterEndSession;
+            [Tooltip("When all networks don't fill ad, then Fetch will be performed automatically after the delay. " +
+                "Negative value is disabled. (In Seconds)")]
+            public float m_deferredFetchDelay = -1;
 
             public List<AdUnit> FetchUnits {
                 get { return m_fetchUnits; }
@@ -93,11 +96,11 @@ namespace Virterix {
             AdUnit[] m_units;
             List<AdUnit> m_fetchUnits = new List<AdUnit>();
             protected AdUnit m_currUnit;
-            int m_lastShownUnitId;
+            int m_lastActiveUnitId;
             bool m_isBannerTypeAdViewVisibled = false;
             AdUnit m_checkingUnit;
-            Coroutine m_waitNetworkPrepare;
-
+            Coroutine m_procWaitNetworkPrepare;
+            Coroutine m_procDeferredFetch;
 
             //===============================================================================
             #region MonoBehavior Methods
@@ -105,12 +108,12 @@ namespace Virterix {
 
             private void OnApplicationPause(bool pause) {
                 if (pause) {
-                    SaveLastShownAdUnit();
+                    SaveLastActiveAdUnit();
                 }
             }
 
             private void OnApplicationQuit() {
-                SaveLastShownAdUnit();
+                SaveLastActiveAdUnit();
             }
 
             #endregion // MonoBehavior Methods
@@ -124,7 +127,7 @@ namespace Virterix {
             /// </summary>
             public void Initialize(AdUnit[] units) {
                 m_units = units;
-                m_lastShownUnitId = -1;
+                m_lastActiveUnitId = -1;
                 int index = 0;
 
                 foreach (AdUnit unit in m_units) {
@@ -135,9 +138,9 @@ namespace Virterix {
                 FillFetchUnits(true);
                 
                 if (m_isContinueAfterEndSession) {
-                    m_lastShownUnitId = PlayerPrefs.GetInt(LastAdUnitIdSaveKey, -1);
-                    if (m_lastShownUnitId != -1 && m_lastShownUnitId < m_units.Length) {
-                        m_fetchStrategy.Reset(this, m_units[m_lastShownUnitId]);
+                    m_lastActiveUnitId = PlayerPrefs.GetInt(LastAdUnitIdSaveKey, -1);
+                    if (m_lastActiveUnitId != -1 && m_lastActiveUnitId < m_units.Length) {
+                        m_fetchStrategy.Reset(this, m_units[m_lastActiveUnitId]);
                     }
                 }
             }
@@ -151,6 +154,11 @@ namespace Virterix {
 
                 if (FetchUnits.Count == 0) {
                     FillFetchUnits(true);
+                }
+
+                if (m_procDeferredFetch != null) {
+                    StopCoroutine(m_procDeferredFetch);
+                    m_procDeferredFetch = null;
                 }
 
                 AdUnit unit = m_fetchStrategy.Fetch(this, FetchUnits.ToArray());
@@ -320,11 +328,11 @@ namespace Virterix {
             void RequestToPrepare(AdUnit unit) {
                 CancelWaitNetworkPrepare();
                 float waitingTime = unit.FetchStrategyParams.m_waitingResponseTime;
-                m_waitNetworkPrepare = StartCoroutine(WaitNetworkPrepare(unit, waitingTime));
+                m_procWaitNetworkPrepare = StartCoroutine(ProcWaitNetworkPrepare(unit, waitingTime));
                 unit.PrepareAd();
             }
 
-            IEnumerator WaitNetworkPrepare(AdUnit unit, float waitingTime) {
+            IEnumerator ProcWaitNetworkPrepare(AdUnit unit, float waitingTime) {
                 float passedTime = 0.0f;
                 float passedTimeForCheckAvailability = 0.0f;
                 bool isCheckAvailabilityWhenPreparing = unit.AdNetwork.IsCheckAvailabilityWhenPreparing(unit.AdapterAdType);
@@ -348,10 +356,17 @@ namespace Virterix {
                 yield return null;
             }
 
+            IEnumerator ProcDeferredFetch(float delay) {
+                yield return new WaitForSecondsRealtime(delay);
+                m_procDeferredFetch = null;
+                Fetch();
+                yield return null;
+            }
+
             void CancelWaitNetworkPrepare() {
-                if (m_waitNetworkPrepare != null) {
-                    StopCoroutine(m_waitNetworkPrepare);
-                    m_waitNetworkPrepare = null;
+                if (m_procWaitNetworkPrepare != null) {
+                    StopCoroutine(m_procWaitNetworkPrepare);
+                    m_procWaitNetworkPrepare = null;
                 }
             }
 
@@ -402,10 +417,10 @@ namespace Virterix {
                 }
             }
 
-            void SaveLastShownAdUnit() {
+            void SaveLastActiveAdUnit() {
                 if (m_isContinueAfterEndSession) {
-                    if (m_currUnit != null && m_lastShownUnitId >= 0) {
-                        PlayerPrefs.SetInt(LastAdUnitIdSaveKey, m_lastShownUnitId);
+                    if (m_currUnit != null && m_lastActiveUnitId >= 0) {
+                        PlayerPrefs.SetInt(LastAdUnitIdSaveKey, m_lastActiveUnitId);
                     }
                 }
             }
@@ -435,7 +450,7 @@ namespace Virterix {
 
                 if (adEvent == AdEvent.PrepareFailure || adEvent == AdEvent.Hide || adEvent == AdEvent.Show) {
                     if (m_currUnit != null) {
-                        m_lastShownUnitId = m_currUnit.Index;
+                        m_lastActiveUnitId = m_currUnit.Index;
                     }
                 }
 
@@ -448,6 +463,13 @@ namespace Virterix {
 
                         if (m_fetchUnits.Count == 0) {
                             FillFetchUnits();
+
+                            if (m_deferredFetchDelay >= 0.0f) {
+                                if (m_procDeferredFetch != null) {
+                                    StopCoroutine(m_procDeferredFetch);
+                                }
+                                m_procDeferredFetch = StartCoroutine(ProcDeferredFetch(m_deferredFetchDelay));
+                            }
                         } else {
                             Fetch();
                         }
